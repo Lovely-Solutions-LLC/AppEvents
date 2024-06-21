@@ -7,15 +7,21 @@ app.use(bodyParser.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Email configuration
+// Email configuration using environment variables
 const transporter = nodemailer.createTransport({
-    service: 'Gmail', // You can use any email service
+    service: 'Gmail',
     auth: {
-        user: 'your-email@gmail.com',
-        pass: 'your-email-password'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
+// Root route to handle GET requests to the root URL
+app.get('/', (req, res) => {
+    res.send('Hello, World! The server is running.');
+});
+
+// Webhook endpoint
 app.post('/webhook', (req, res) => {
     const notificationType = req.body.type;
     const data = req.body.data;
@@ -24,8 +30,8 @@ app.post('/webhook', (req, res) => {
         const { user_name, user_email, account_name } = data;
 
         const mailOptions = {
-            from: 'your-email@gmail.com',
-            to: 'your-notification-email@example.com',
+            from: process.env.EMAIL_USER,
+            to: 'liambailey131@outlook.com',
             subject: 'New App Installation',
             text: `A new user has installed your app:
             Name: ${user_name}
