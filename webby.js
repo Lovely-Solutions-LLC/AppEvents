@@ -25,7 +25,7 @@ app.get('/', (req, res) => {
 const sendEmail = (subject, text) => {
     const mailOptions = {
         from: process.env.EMAIL_USER, // Sender address
-        to: 'your-notification-email@example.com', // List of recipients
+        to: 'liambailey131@outlook.com', // List of recipients
         subject: subject,
         text: text
     };
