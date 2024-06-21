@@ -21,32 +21,52 @@ app.get('/', (req, res) => {
     res.send('Hello, World! The server is running.');
 });
 
+// Function to send email
+const sendEmail = (subject, text) => {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: 'liambailey131@outlook.com',
+        subject: subject,
+        text: text
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+            return console.log(error);
+        }
+        console.log('Email sent: ' + info.response);
+    });
+};
+
 // Webhook endpoint
 app.post('/webhook', (req, res) => {
     const notificationType = req.body.type;
     const data = req.body.data;
 
-    if (notificationType === 'install') {
-        const { user_name, user_email, account_name } = data;
-
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: 'liambailey131@outlook.com',
-            subject: 'New App Installation',
-            text: `A new user has installed your app:
-            Name: ${user_name}
-            Email: ${user_email}
-            Account: ${account_name}`
-        };
-
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                return console.log(error);
-            }
-            console.log('Email sent: ' + info.response);
-        });
+    let subject, text;
+    switch (notificationType) {
+        case 'install':
+            subject = 'New App Installation';
+            text = `A new user has installed your app:\n${JSON.stringify(data, null, 2)}`;
+            break;
+        case 'app_subscription_created':
+            subject = 'New App Subscription Created';
+            text = `A new subscription has been created:\n${JSON.stringify(data, null, 2)}`;
+            break;
+        case 'app_subscription_changed':
+            subject = 'App Subscription Changed';
+            text = `A subscription has been changed:\n${JSON.stringify(data, null, 2)}`;
+            break;
+        case 'app_trial_subscription_started':
+            subject = 'App Trial Subscription Started';
+            text = `A trial subscription has started:\n${JSON.stringify(data, null, 2)}`;
+            break;
+        default:
+            res.sendStatus(200); // Ignore other events
+            return;
     }
 
+    sendEmail(subject, text);
     res.sendStatus(200);
 });
 
