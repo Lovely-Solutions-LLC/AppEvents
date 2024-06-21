@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 
 // Email configuration using environment variables
 const transporter = nodemailer.createTransport({
-    service: 'Gmail',
+    service: 'hotmail',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -24,22 +24,25 @@ app.get('/', (req, res) => {
 // Function to send email
 const sendEmail = (subject, text) => {
     const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: 'liambailey131@outlook.com',
+        from: process.env.EMAIL_USER, // Sender address
+        to: 'your-notification-email@example.com', // List of recipients
         subject: subject,
         text: text
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-            return console.log(error);
+            console.log('Error sending email:', error);
+            return;
         }
-        console.log('Email sent: ' + info.response);
+        console.log('Email sent:', info.response);
     });
 };
 
 // Webhook endpoint
 app.post('/webhook', (req, res) => {
+    console.log('Webhook received:', req.body);
+
     const notificationType = req.body.type;
     const data = req.body.data;
 
