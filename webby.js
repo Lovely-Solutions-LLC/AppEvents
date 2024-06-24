@@ -72,43 +72,79 @@ app.post('/webhook', (req, res) => {
     const notificationType = req.body.type;
     const data = req.body.data;
 
-    let subject, text;
+    let subject, text, columnValues;
     switch (notificationType) {
         case 'install':
             subject = 'New App Installation';
             text = `A new user has installed your app:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem('New Installation', {
-                text: data.user_name,
-                email: data.user_email,
-                text2: data.account_name // Update these fields as per your board's columns
-            });
+            columnValues = {
+                email1: { email: data.user_email, text: data.user_name },
+                date1: { date: data.timestamp },
+                text1: data.account_slug,
+                text2: data.account_name,
+                text3: data.app_id,
+                text4: data.user_cluster,
+                status1: data.account_tier,
+                text5: data.account_max_users,
+                text6: data.account_id,
+                text7: data.plan_id,
+                text8: data.user_country
+            };
+            createMondayItem(data.user_name, columnValues);
             break;
         case 'app_subscription_created':
             subject = 'New App Subscription Created';
             text = `A new subscription has been created:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem('New Subscription', {
-                text: data.user_name,
-                email: data.user_email,
-                text2: data.account_name // Update these fields as per your board's columns
-            });
+            columnValues = {
+                email1: { email: data.user_email, text: data.user_name },
+                date1: { date: data.timestamp },
+                text1: data.account_slug,
+                text2: data.account_name,
+                text3: data.app_id,
+                text4: data.user_cluster,
+                status1: data.account_tier,
+                text5: data.account_max_users,
+                text6: data.account_id,
+                text7: data.plan_id,
+                text8: data.user_country
+            };
+            createMondayItem(data.user_name, columnValues);
             break;
         case 'app_subscription_changed':
             subject = 'App Subscription Changed';
             text = `A subscription has been changed:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem('Subscription Changed', {
-                text: data.user_name,
-                email: data.user_email,
-                text2: data.account_name // Update these fields as per your board's columns
-            });
+            columnValues = {
+                email1: { email: data.user_email, text: data.user_name },
+                date1: { date: data.timestamp },
+                text1: data.account_slug,
+                text2: data.account_name,
+                text3: data.app_id,
+                text4: data.user_cluster,
+                status1: data.account_tier,
+                text5: data.account_max_users,
+                text6: data.account_id,
+                text7: data.plan_id,
+                text8: data.user_country
+            };
+            createMondayItem(data.user_name, columnValues);
             break;
         case 'app_trial_subscription_started':
             subject = 'App Trial Subscription Started';
             text = `A trial subscription has started:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem('Trial Subscription Started', {
-                text: data.user_name,
-                email: data.user_email,
-                text2: data.account_name // Update these fields as per your board's columns
-            });
+            columnValues = {
+                email1: { email: data.user_email, text: data.user_name },
+                date1: { date: data.timestamp },
+                text1: data.account_slug,
+                text2: data.account_name,
+                text3: data.app_id,
+                text4: data.user_cluster,
+                status1: data.account_tier,
+                text5: data.account_max_users,
+                text6: data.account_id,
+                text7: data.plan_id,
+                text8: data.user_country
+            };
+            createMondayItem(data.user_name, columnValues);
             break;
         default:
             res.sendStatus(200); // Ignore other events
