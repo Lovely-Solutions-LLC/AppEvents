@@ -46,7 +46,7 @@ const createMondayItem = async (itemName, columnValues) => {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
                 item_name: "${itemName}",
-                column_values: ${JSON.stringify(columnValues)}
+                column_values: "${JSON.stringify(columnValues).replace(/\"/g, '\\\"')}"
             ) {
                 id
             }
