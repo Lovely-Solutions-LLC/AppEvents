@@ -46,7 +46,7 @@ const createMondayItem = async (itemName, columnValues) => {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
                 item_name: "${itemName}",
-                column_values: ${JSON.stringify(columnValues)}
+                column_values: "${JSON.stringify(columnValues).replace(/"/g, '\\"')}"
             ) {
                 id
             }
@@ -90,28 +90,30 @@ app.post('/webhook', (req, res) => {
         text6__1: data.user_country
     };
 
-    console.log('Column Values:', columnValues); // Log column values for debugging
+    const formattedColumnValues = JSON.stringify(columnValues).replace(/"([^"]+)":/g, '$1:');
+
+    console.log('Formatted Column Values:', formattedColumnValues); // Log formatted column values for debugging
 
     switch (notificationType) {
         case 'install':
             subject = 'New App Installation';
             text = `A new user has installed your app:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(data.user_name, columnValues);
+            createMondayItem(data.user_name, formattedColumnValues);
             break;
         case 'app_subscription_created':
             subject = 'New App Subscription Created';
             text = `A new subscription has been created:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(data.user_name, columnValues);
+            createMondayItem(data.user_name, formattedColumnValues);
             break;
         case 'app_subscription_changed':
             subject = 'App Subscription Changed';
             text = `A subscription has been changed:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(data.user_name, columnValues);
+            createMondayItem(data.user_name, formattedColumnValues);
             break;
         case 'app_trial_subscription_started':
             subject = 'App Trial Subscription Started';
             text = `A trial subscription has started:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(data.user_name, columnValues);
+            createMondayItem(data.user_name, formattedColumnValues);
             break;
         default:
             res.sendStatus(200); // Ignore other events
