@@ -41,13 +41,12 @@ const sendEmail = (subject, text) => {
 
 // Function to create a new item in Monday.com
 const createMondayItem = async (itemName, columnValues) => {
-    const formattedColumnValues = JSON.stringify(columnValues).replace(/"([^"]+)":/g, '$1:').replace(/"/g, '\\"');
     const query = `
         mutation {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
                 item_name: "${itemName}",
-                column_values: "${formattedColumnValues}"
+                column_values: "${JSON.stringify(columnValues).replace(/"/g, '\\"')}"
             ) {
                 id
             }
