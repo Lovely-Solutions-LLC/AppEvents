@@ -41,13 +41,12 @@ const sendEmail = (subject, text) => {
 
 // Function to create a new item in Monday.com
 const createMondayItem = async (itemName, columnValues) => {
-    const formattedColumnValues = JSON.stringify(columnValues).replace(/\"/g, '\\"');
     const query = `
         mutation {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
                 item_name: "${itemName}",
-                column_values: "${formattedColumnValues.replace(/\\/g, '\\\\')}"
+                column_values: "${columnValues}"
             ) {
                 id
             }
@@ -77,7 +76,7 @@ app.post('/webhook', (req, res) => {
     const data = req.body.data;
 
     let subject, text, columnValues;
-    columnValues = {
+    columnValues = JSON.stringify({
         email__1: { email: data.user_email, text: data.user_name },
         date4: { date: data.timestamp.split('T')[0] },
         text__1: data.account_slug,
@@ -89,7 +88,7 @@ app.post('/webhook', (req, res) => {
         text2__1: data.account_id,
         text21__1: data.plan_id,
         text6__1: data.user_country
-    };
+    });
 
     console.log('Column Values:', columnValues); // Log column values for debugging
 
