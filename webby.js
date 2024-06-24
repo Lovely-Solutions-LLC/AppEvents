@@ -25,7 +25,7 @@ const MONDAY_BOARD_ID = process.env.MONDAY_BOARD_ID;
 const sendEmail = (subject, text) => {
     const mailOptions = {
         from: process.env.EMAIL_USER, // Sender address
-        to: 'liambailey131@outlook.com', // Replace with your real email address
+        to: 'liambailey131@outlook.com', // Your real email address
         subject: subject,
         text: text
     };
@@ -46,7 +46,7 @@ const createMondayItem = async (itemName, columnValues) => {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
                 item_name: "${itemName}",
-                column_values: "${columnValues}"
+                column_values: ${JSON.stringify(columnValues)}
             ) {
                 id
             }
@@ -76,7 +76,7 @@ app.post('/webhook', (req, res) => {
     const data = req.body.data;
 
     let subject, text, columnValues;
-    columnValues = JSON.stringify({
+    columnValues = {
         email__1: { email: data.user_email, text: data.user_name },
         date4: { date: data.timestamp.split('T')[0] },
         text__1: data.account_slug,
@@ -88,9 +88,9 @@ app.post('/webhook', (req, res) => {
         text2__1: data.account_id,
         text21__1: data.plan_id,
         text6__1: data.user_country
-    });
+    };
 
-    console.log('Column Values:', columnValues); // Log column values for debugging
+    console.log('Column Values:', JSON.stringify(columnValues)); // Log column values for debugging
 
     switch (notificationType) {
         case 'install':
