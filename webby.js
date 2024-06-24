@@ -46,7 +46,7 @@ const createMondayItem = async (itemName, columnValues) => {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
                 item_name: "${itemName}",
-                column_values: "${columnValues}"
+                column_values: "${columnValues.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"
             ) {
                 id
             }
@@ -90,7 +90,7 @@ app.post('/webhook', (req, res) => {
         text8: data.user_country
     };
 
-    const columnValuesString = JSON.stringify(columnValues);
+    const columnValuesString = JSON.stringify(columnValues).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     console.log('Column Values:', columnValuesString); // Log column values for debugging
 
     switch (notificationType) {
