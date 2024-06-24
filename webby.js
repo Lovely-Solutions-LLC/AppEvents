@@ -41,12 +41,13 @@ const sendEmail = (subject, text) => {
 
 // Function to create a new item in Monday.com
 const createMondayItem = async (itemName, columnValues) => {
+    const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
     const query = `
         mutation {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
                 item_name: "${itemName}",
-                column_values: "${JSON.stringify(columnValues).replace(/"/g, '\\"')}"
+                column_values: "${columnValuesString}"
             ) {
                 id
             }
@@ -77,20 +78,20 @@ app.post('/webhook', (req, res) => {
 
     let subject, text, columnValues;
     columnValues = {
-        email__1: JSON.stringify({ email: data.user_email, text: data.user_name }),
-        date4: JSON.stringify({ date: data.timestamp.split('T')[0] }),
-        text__1: JSON.stringify(data.account_slug),
-        text1__1: JSON.stringify(data.account_name),
-        text3__1: JSON.stringify(data.app_id),
-        text0__1: JSON.stringify(data.user_cluster),
-        status__1: JSON.stringify({ label: data.account_tier }),
-        text7__1: JSON.stringify(data.account_max_users),
-        text2__1: JSON.stringify(data.account_id),
-        text21__1: JSON.stringify(data.plan_id),
-        text6__1: JSON.stringify(data.user_country)
+        email__1: { email: data.user_email, text: data.user_name },
+        date4: { date: data.timestamp.split('T')[0] },
+        text__1: data.account_slug,
+        text1__1: data.account_name,
+        text3__1: data.app_id.toString(),
+        text0__1: data.user_cluster,
+        status__1: { label: data.account_tier },
+        text7__1: data.account_max_users.toString(),
+        text2__1: data.account_id.toString(),
+        text21__1: data.plan_id,
+        text6__1: data.user_country
     };
 
-    console.log('Column Values:', JSON.stringify(columnValues)); // Log column values for debugging
+    console.log('Column Values:', columnValues); // Log column values for debugging
 
     switch (notificationType) {
         case 'install':
