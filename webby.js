@@ -46,7 +46,7 @@ const createMondayItem = async (itemName, columnValues) => {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
                 item_name: "${itemName}",
-                column_values: ${JSON.stringify(columnValues)}
+                column_values: "${columnValues.replace(/"/g, '\\"')}"
             ) {
                 id
             }
@@ -56,13 +56,12 @@ const createMondayItem = async (itemName, columnValues) => {
     try {
         const response = await axios.post('https://api.monday.com/v2', { query }, {
             headers: {
-                Authorization: MONDAY_API_TOKEN,
-                'Content-Type': 'application/json'
+                Authorization: MONDAY_API_TOKEN
             }
         });
         console.log('Item created in Monday.com:', response.data);
     } catch (error) {
-        console.error('Error creating item in Monday.com:', error);
+        console.error('Error creating item in Monday.com:', error.response ? error.response.data : error.message);
     }
 };
 
@@ -81,7 +80,7 @@ app.post('/webhook', (req, res) => {
         text2: data.account_name,
         text3: data.app_id,
         text4: data.user_cluster,
-        status1: data.account_tier,
+        status1: { label: data.account_tier }, // Ensure this is properly formatted for status
         text5: data.account_max_users,
         text6: data.account_id,
         text7: data.plan_id,
