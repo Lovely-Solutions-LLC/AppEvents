@@ -25,7 +25,7 @@ const MONDAY_BOARD_ID = process.env.MONDAY_BOARD_ID;
 const sendEmail = (subject, text) => {
     const mailOptions = {
         from: process.env.EMAIL_USER, // Sender address
-        to: 'your-notification-email@example.com', // List of recipients
+        to: 'liambailey131@outlook.com', // Replace with your real email address
         subject: subject,
         text: text
     };
@@ -46,7 +46,7 @@ const createMondayItem = async (itemName, columnValues) => {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
                 item_name: "${itemName}",
-                column_values: ${JSON.stringify(columnValues)}
+                column_values: "${JSON.stringify(columnValues).replace(/"/g, '\\"')}"
             ) {
                 id
             }
