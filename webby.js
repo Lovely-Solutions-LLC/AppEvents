@@ -87,7 +87,7 @@ app.post('/webhook', (req, res) => {
     let subject, text, columnValues, itemName;
     const { firstName, lastName } = splitName(data.user_name);
     columnValues = {
-        email__1: { email: data.user_email, text: data.user_name },
+        email__1: { email: data.user_email},
         text8__1: firstName,
         text9__1: lastName,
         date4: { date: data.timestamp.split('T')[0] },
