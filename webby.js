@@ -21,6 +21,13 @@ const transporter = nodemailer.createTransport({
 const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
 const MONDAY_BOARD_ID = process.env.MONDAY_BOARD_ID;
 
+// Define a mapping of app IDs to group IDs
+const GROUP_IDS = {
+    '10142077': 'new_group__1',
+    '10126111': 'new_group80154__1',
+    '10147286': 'new_group48310__1'
+};
+
 // Function to send email
 const sendEmail = (subject, text) => {
     const mailOptions = {
@@ -48,12 +55,13 @@ const splitName = (fullName) => {
 };
 
 // Function to create a new item in Monday.com
-const createMondayItem = async (itemName, columnValues) => {
+const createMondayItem = async (itemName, columnValues, groupId) => {
     const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
     const query = `
         mutation {
             create_item (
                 board_id: ${MONDAY_BOARD_ID},
+                group_id: "${groupId}",
                 item_name: "${itemName}",
                 column_values: "${columnValuesString}"
             ) {
@@ -87,8 +95,7 @@ app.post('/webhook', (req, res) => {
     let subject, text, columnValues, itemName;
     const { firstName, lastName } = splitName(data.user_name);
     columnValues = {
-        email__1:{ email: data.user_email, text: data.user_email },
-
+        email__1: { email: data.user_email, text: data.user_email },
         text8__1: firstName,
         text9__1: lastName,
         date4: { date: data.timestamp.split('T')[0] },
@@ -96,7 +103,7 @@ app.post('/webhook', (req, res) => {
         text1__1: data.account_name,
         text3__1: data.app_id.toString(),
         text0__1: data.user_cluster,
-        status__1: { label: data.account_tier ? data.account_tier.toLowerCase() : 'unknown' }, // Handle null case
+        status__1: { label: data.account_tier ? data.account_tier.toLowerCase() : "unknown" },
         text7__1: data.account_max_users.toString(),
         text2__1: data.account_id.toString(),
         text21__1: data.plan_id,
@@ -105,48 +112,51 @@ app.post('/webhook', (req, res) => {
 
     console.log('Column Values:', columnValues); // Log column values for debugging
 
+    // Determine group ID based on app ID
+    const groupId = GROUP_IDS[data.app_id] || 'default_group_id';
+
     switch (notificationType) {
         case 'install':
             subject = 'New App Installation';
             itemName = "New Installation";
             text = `A new user has installed your app:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues);
+            createMondayItem(itemName, columnValues, groupId);
             break;
         case 'app_subscription_created':
             subject = 'New App Subscription Created';
             itemName = "Subscription Created";
             text = `A new subscription has been created:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues);
+            createMondayItem(itemName, columnValues, groupId);
             break;
         case 'app_subscription_changed':
             subject = 'App Subscription Changed';
             itemName = "Subscription Changed";
             text = `A subscription has been changed:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues);
+            createMondayItem(itemName, columnValues, groupId);
             break;
         case 'app_trial_subscription_started':
             subject = 'App Trial Subscription Started';
             itemName = "Trial Subscription Started";
             text = `A trial subscription has started:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues);
+            createMondayItem(itemName, columnValues, groupId);
             break;
         case 'uninstall':
             subject = 'App Uninstalled';
             itemName = "App Uninstalled";
             text = `The app has been uninstalled:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues);
+            createMondayItem(itemName, columnValues, groupId);
             break;
         case 'app_subscription_renewed':
             subject = 'App Subscription Renewed';
             itemName = "Subscription Renewed";
             text = `A subscription has been renewed:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues);
+            createMondayItem(itemName, columnValues, groupId);
             break;
         case 'app_subscription_cancelled':
             subject = 'App Subscription Cancelled';
             itemName = "Subscription Cancelled";
             text = `A subscription has been cancelled:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues);
+            createMondayItem(itemName, columnValues, groupId);
             break;
         default:
             res.sendStatus(200); // Ignore other events
