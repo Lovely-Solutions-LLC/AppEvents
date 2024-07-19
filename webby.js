@@ -21,13 +21,6 @@ const transporter = nodemailer.createTransport({
 const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
 const MONDAY_BOARD_ID = process.env.MONDAY_BOARD_ID;
 
-// Define a mapping of app IDs to group IDs
-const GROUP_IDS = {
-    '10142077': 'new_group__1',
-    '10126111': 'new_group80154__1',
-    '10147286': 'new_group48310__1'
-};
-
 // Function to send email
 const sendEmail = (subject, text) => {
     const mailOptions = {
@@ -52,6 +45,16 @@ const splitName = (fullName) => {
     const firstName = names.slice(0, -1).join(' ');
     const lastName = names.slice(-1).join(' ');
     return { firstName, lastName };
+};
+
+// Function to get the group ID based on the app ID
+const getGroupId = (appId) => {
+    const groupMap = {
+        '10142077': 'new_group__1',
+        '10126111': 'new_group80154__1',
+        '10147286': 'new_group48310__1'
+    };
+    return groupMap[appId] || 'new_group__1'; // Use a default group ID if app ID is not in the map
 };
 
 // Function to create a new item in Monday.com
@@ -94,6 +97,9 @@ app.post('/webhook', (req, res) => {
 
     let subject, text, columnValues, itemName;
     const { firstName, lastName } = splitName(data.user_name);
+    const groupId = getGroupId(data.app_id);
+    let statusLabel = data.account_tier ? data.account_tier.toLowerCase() : 'free'; // Set default value to 'free'
+
     columnValues = {
         email__1: { email: data.user_email, text: data.user_email },
         text8__1: firstName,
@@ -103,7 +109,7 @@ app.post('/webhook', (req, res) => {
         text1__1: data.account_name,
         text3__1: data.app_id.toString(),
         text0__1: data.user_cluster,
-        status__1: { label: data.account_tier ? data.account_tier.toLowerCase() : "unknown" },
+        status__1: { label: statusLabel },
         text7__1: data.account_max_users.toString(),
         text2__1: data.account_id.toString(),
         text21__1: data.plan_id,
@@ -111,9 +117,6 @@ app.post('/webhook', (req, res) => {
     };
 
     console.log('Column Values:', columnValues); // Log column values for debugging
-
-    // Determine group ID based on app ID
-    const groupId = GROUP_IDS[data.app_id] || 'default_group_id';
 
     switch (notificationType) {
         case 'install':
