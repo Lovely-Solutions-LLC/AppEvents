@@ -54,7 +54,7 @@ const getGroupId = (appId) => {
         '10126111': 'new_group80154__1',
         '10147286': 'new_group48310__1'
     };
-    return groupMap[appId] || 'new_group__1'; // Use a default group ID if app ID is not in the map
+    return groupMap[appId] || 'default_group_id'; // Use a default group ID if app ID is not in the map
 };
 
 // Function to create a new item in Monday.com
