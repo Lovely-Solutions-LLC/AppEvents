@@ -137,12 +137,6 @@ app.post('/webhook', (req, res) => {
             text = `A subscription has been changed:\n${JSON.stringify(data, null, 2)}`;
             createMondayItem(itemName, columnValues, groupId);
             break;
-        case 'app_trial_subscription_started':
-            subject = 'App Trial Subscription Started';
-            itemName = "Trial Subscription Started";
-            text = `A trial subscription has started:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues, groupId);
-            break;
         case 'uninstall':
             subject = 'App Uninstalled';
             itemName = "App Uninstalled";
