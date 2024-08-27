@@ -1,3 +1,95 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const nodemailer = require('nodemailer');
+const axios = require('axios');
+
+const app = express();
+app.use(bodyParser.json());
+
+const PORT = process.env.PORT || 3000;
+
+// Email configuration using environment variables
+const transporter = nodemailer.createTransport({
+    service: 'hotmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+// Monday.com API token and board ID
+const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
+const MONDAY_BOARD_ID = process.env.MONDAY_BOARD_ID;
+
+// Function to send email
+const sendEmail = (subject, text) => {
+    const mailOptions = {
+        from: process.env.EMAIL_USER, // Sender address
+        to: 'liambailey131@outlook.com', // Your real email address
+        subject: subject,
+        text: text
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+            console.log('Error sending email:', error);
+            return;
+        }
+        console.log('Email sent:', info.response);
+    });
+};
+
+// Function to split full name into first and last name
+const splitName = (fullName) => {
+    const names = fullName.split(' ');
+    const firstName = names.slice(0, -1).join(' ');
+    const lastName = names.slice(-1).join(' ');
+    return { firstName, lastName };
+};
+
+// Function to get the group ID based on the app ID
+const getGroupId = (appId) => {
+    const groupMap = {
+        '10142077': 'new_group__1',
+        '10126111': 'new_group80154__1',
+        '10147286': 'new_group48310__1',
+        '10172591': 'new_group33552__1' // New app ID added
+    };
+    return groupMap[appId] || 'default_group_id'; // Use a default group ID if app ID is not in the map
+};
+
+// Function to create a new item in Monday.com
+const createMondayItem = async (itemName, columnValues, groupId) => {
+    const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
+    const query = `
+        mutation {
+            create_item (
+                board_id: ${MONDAY_BOARD_ID},
+                group_id: "${groupId}",
+                item_name: "${itemName}",
+                column_values: "${columnValuesString}"
+            ) {
+                id
+            }
+        }
+    `;
+
+    console.log('GraphQL Query:', query); // Log the query for debugging
+
+    try {
+        const response = await axios.post('https://api.monday.com/v2', { query }, {
+            headers: {
+                Authorization: MONDAY_API_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        });
+        console.log('Item created in Monday.com:', response.data);
+    } catch (error) {
+        console.error('Error creating item in Monday.com:', error.response ? error.response.data : error.message);
+    }
+};
+
+// Webhook endpoint
 app.post('/webhook', (req, res) => {
     console.log('Webhook received:', req.body);
 
@@ -33,52 +125,46 @@ app.post('/webhook', (req, res) => {
             itemName = "New Installation";
             text = `A new user has installed your app:\n${JSON.stringify(data, null, 2)}`;
             createMondayItem(itemName, columnValues, groupId);
-            sendEmail(subject, text);
             break;
         case 'app_subscription_created':
             subject = 'New App Subscription Created';
             itemName = "Subscription Created";
             text = `A new subscription has been created:\n${JSON.stringify(data, null, 2)}`;
             createMondayItem(itemName, columnValues, groupId);
-            sendEmail(subject, text);
             break;
         case 'app_subscription_changed':
             subject = 'App Subscription Changed';
             itemName = "Subscription Changed";
             text = `A subscription has been changed:\n${JSON.stringify(data, null, 2)}`;
             createMondayItem(itemName, columnValues, groupId);
-            sendEmail(subject, text);
             break;
         case 'uninstall':
             subject = 'App Uninstalled';
             itemName = "App Uninstalled";
             text = `The app has been uninstalled:\n${JSON.stringify(data, null, 2)}`;
             createMondayItem(itemName, columnValues, groupId);
-            sendEmail(subject, text);
             break;
         case 'app_subscription_renewed':
             subject = 'App Subscription Renewed';
             itemName = "Subscription Renewed";
             text = `A subscription has been renewed:\n${JSON.stringify(data, null, 2)}`;
             createMondayItem(itemName, columnValues, groupId);
-            sendEmail(subject, text);
             break;
         case 'app_subscription_cancelled':
             subject = 'App Subscription Cancelled';
             itemName = "Subscription Cancelled";
             text = `A subscription has been cancelled:\n${JSON.stringify(data, null, 2)}`;
             createMondayItem(itemName, columnValues, groupId);
-            sendEmail(subject, text);
             break;
-        // Remove handling for 'app_trial_subscription_started'
-        case 'app_trial_subscription_started':
-            // Do nothing
-            res.sendStatus(200);
-            return;
         default:
             res.sendStatus(200); // Ignore other events
             return;
     }
 
+    sendEmail(subject, text);
     res.sendStatus(200);
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
