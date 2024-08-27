@@ -52,7 +52,8 @@ const getGroupId = (appId) => {
     const groupMap = {
         '10142077': 'new_group__1',
         '10126111': 'new_group80154__1',
-        '10147286': 'new_group48310__1'
+        '10147286': 'new_group48310__1',
+        '10172591': 'new_group33552__1' // Added the new app ID and its group ID
     };
     return groupMap[appId] || 'default_group_id'; // Use a default group ID if app ID is not in the map
 };
