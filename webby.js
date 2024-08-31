@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
+const { getCountryName } = require('./countryTranslator'); // Import the translator
 
 const app = express();
 app.use(bodyParser.json());
@@ -114,7 +115,7 @@ app.post('/webhook', (req, res) => {
         account_max_users__1: data.account_max_users.toString(),
         text2__1: data.account_id.toString(),
         text21__1: data.plan_id,
-        country__1: data.user_country
+        country__1: { countryCode: data.user_country, countryName: getCountryName(data.user_country) }
     };
 
     console.log('Column Values:', columnValues); // Log column values for debugging
