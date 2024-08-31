@@ -111,10 +111,10 @@ app.post('/webhook', (req, res) => {
         text3__1: data.app_id.toString(),
         text0__1: data.user_cluster,
         status__1: { label: statusLabel },
-        text7__1: data.account_max_users.toString(),
+        account_max_users__1: data.account_max_users.toString(),
         text2__1: data.account_id.toString(),
         text21__1: data.plan_id,
-        text6__1: data.user_country
+        country__1: data.user_country
     };
 
     console.log('Column Values:', columnValues); // Log column values for debugging
