@@ -70,7 +70,7 @@ const updateMondayItem = async (itemId, columnValues, boardId) => {
     const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
     const query = `
         mutation {
-            change_column_values (
+            change_multiple_column_values (
                 board_id: ${boardId},
                 item_id: ${itemId},
                 column_values: "${columnValuesString}"
