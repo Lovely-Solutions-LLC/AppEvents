@@ -70,11 +70,13 @@ const getItemIdByAccountId = async (accountId, boardId) => {
     const query = `
         query {
             boards(ids: ${boardId}) {
-                items {
-                    id
-                    name
-                    column_values(ids: ["text2__1"]) {
-                        text
+                items_page {
+                    items {
+                        id
+                        name
+                        column_values(ids: ["text2__1"]) {
+                            text
+                        }
                     }
                 }
             }
@@ -92,7 +94,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
         console.log('Response from Monday.com for getItemIdByAccountId:', JSON.stringify(response.data, null, 2));
 
         if (response.data && response.data.data && response.data.data.boards.length > 0) {
-            const items = response.data.data.boards[0].items;
+            const items = response.data.data.boards[0].items_page.items;
 
             // Find item where the column with id "text2__1" (account_id column) matches the given accountId
             const item = items.find(item => item.column_values.some(column => column.text === accountId.toString()));
@@ -112,6 +114,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
         throw error;
     }
 };
+
 
 
 
