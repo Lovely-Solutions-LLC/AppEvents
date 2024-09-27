@@ -114,7 +114,7 @@ app.post('/webhook', (req, res) => {
         status__1: { label: statusLabel },
         account_max_users__1: data.account_max_users.toString(),
         text2__1: data.account_id.toString(),
-        text21__1: data.plan_id ? data.plan_id.toString() : '',
+        text21__1: data.plan_id ? data.plan_id : '',
         country__1: { countryCode: data.user_country, countryName: getCountryName(data.user_country) }
     };
 
