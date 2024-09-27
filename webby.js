@@ -1,72 +1,47 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const nodemailer = require('nodemailer');
 const axios = require('axios');
-const { getCountryName } = require('./countryTranslator'); // Import the translator
+const { getCountryName } = require('./countryTranslator'); // Import the country translator
 
 const app = express();
 app.use(bodyParser.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Email configuration using environment variables
-const transporter = nodemailer.createTransport({
-    service: 'hotmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
-
-// Monday.com API token and board ID
+// Monday.com API token
 const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
-const MONDAY_BOARD_ID = process.env.MONDAY_BOARD_ID;
 
-// Function to send email
-const sendEmail = (subject, text) => {
-    const mailOptions = {
-        from: process.env.EMAIL_USER, // Sender address
-        to: 'liambailey131@outlook.com', // Your real email address
-        subject: subject,
-        text: text
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-            console.log('Error sending email:', error);
-            return;
-        }
-        console.log('Email sent:', info.response);
-    });
+// Board ID mapping based on app ID
+const boardIdMapping = {
+    '10142077': '7517528529', // Board ID for App 10142077 (Status Label Descriptions)
+    '10126111': '7517444546', // Board ID for App 10126111 (Update Templates)
+    '10147286': '7517579690'  // Board ID for App 10147286 (Facebook Embedded)
 };
 
-// Function to split full name into first and last name
-const splitName = (fullName) => {
-    const names = fullName.split(' ');
-    const firstName = names.slice(0, -1).join(' ');
-    const lastName = names.slice(-1).join(' ');
-    return { firstName, lastName };
-};
-
-// Function to get the group ID based on the app ID
-const getGroupId = (appId) => {
-    const groupMap = {
-        '10142077': 'new_group__1',
-        '10126111': 'new_group80154__1',
-        '10147286': 'new_group48310__1',
-        '10172591': 'new_group33552__1' // New app ID added
-    };
-    return groupMap[appId] || 'default_group_id'; // Use a default group ID if app ID is not in the map
+// Column IDs (Same across all boards)
+const columnMap = {
+    email: 'email__1',
+    firstName: 'text8__1',
+    lastName: 'text9__1',
+    timestamp: 'date4',
+    slug: 'text__1',
+    companyName: 'text1__1',
+    appId: 'text3__1',
+    cluster: 'text0__1',
+    status: 'status74__1', // Updated status column ID to 'status74__1'
+    maxUsers: 'account_max_users__1',
+    accountId: 'text2__1',
+    planId: 'text21__1',
+    country: 'country__1'
 };
 
 // Function to create a new item in Monday.com
-const createMondayItem = async (itemName, columnValues, groupId) => {
+const createMondayItem = async (itemName, columnValues, boardId) => {
     const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
     const query = `
         mutation {
             create_item (
-                board_id: ${MONDAY_BOARD_ID},
-                group_id: "${groupId}",
+                board_id: ${boardId},
                 item_name: "${itemName}",
                 column_values: "${columnValuesString}"
             ) {
@@ -74,8 +49,6 @@ const createMondayItem = async (itemName, columnValues, groupId) => {
             }
         }
     `;
-
-    console.log('GraphQL Query:', query); // Log the query for debugging
 
     try {
         const response = await axios.post('https://api.monday.com/v2', { query }, {
@@ -85,86 +58,154 @@ const createMondayItem = async (itemName, columnValues, groupId) => {
             }
         });
         console.log('Item created in Monday.com:', response.data);
+        return response.data.data.create_item.id; // Return the new item ID for future updates
     } catch (error) {
         console.error('Error creating item in Monday.com:', error.response ? error.response.data : error.message);
+        throw error;
+    }
+};
+
+// Function to update an existing item in Monday.com
+const updateMondayItem = async (itemId, columnValues, boardId) => {
+    const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
+    const query = `
+        mutation {
+            change_multiple_column_values (
+                board_id: ${boardId},
+                item_id: ${itemId},
+                column_values: "${columnValuesString}"
+            ) {
+                id
+            }
+        }
+    `;
+
+    try {
+        const response = await axios.post('https://api.monday.com/v2', { query }, {
+            headers: {
+                Authorization: MONDAY_API_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        });
+        console.log('Item updated in Monday.com:', response.data);
+    } catch (error) {
+        console.error('Error updating item in Monday.com:', error.response ? error.response.data : error.message);
+    }
+};
+
+// Function to find an item ID by account ID
+const getItemIdByAccountId = async (accountId, boardId) => {
+    const query = `
+        query {
+            items_by_column_values(board_id: ${boardId}, column_id: "${columnMap.accountId}", column_value: "${accountId}") {
+                id
+                name
+            }
+        }
+    `;
+
+    try {
+        const response = await axios.post('https://api.monday.com/v2', { query }, {
+            headers: {
+                Authorization: MONDAY_API_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        });
+        const items = response.data.data.items_by_column_values;
+        return items.length ? items[0].id : null; // Return the first matching item ID
+    } catch (error) {
+        console.error('Error finding item by account ID:', error.response ? error.response.data : error.message);
+        throw error;
     }
 };
 
 // Webhook endpoint
-app.post('/webhook', (req, res) => {
+app.post('/webhook', async (req, res) => {
     console.log('Webhook received:', req.body);
 
     const notificationType = req.body.type;
     const data = req.body.data;
 
-    let subject, text, columnValues, itemName;
     const { firstName, lastName } = splitName(data.user_name);
-    const groupId = getGroupId(data.app_id);
-    let statusLabel = data.account_tier ? data.account_tier.toLowerCase() : 'free'; // Set default value to 'free'
+    const boardId = boardIdMapping[data.app_id];
 
-    columnValues = {
-        email__1: { email: data.user_email, text: data.user_email },
-        text8__1: firstName,
-        text9__1: lastName,
-        date4: { date: data.timestamp.split('T')[0] },
-        text__1: data.account_slug,
-        text1__1: data.account_name,
-        text3__1: data.app_id.toString(),
-        text0__1: data.user_cluster,
-        status__1: { label: statusLabel },
-        account_max_users__1: data.account_max_users.toString(),
-        text2__1: data.account_id.toString(),
-        text21__1: data.plan_id ? data.plan_id : '',
-        country__1: { countryCode: data.user_country, countryName: getCountryName(data.user_country) }
-    };
-
-    console.log('Column Values:', columnValues); // Log column values for debugging
-
-    switch (notificationType) {
-        case 'install':
-            subject = 'New App Installation';
-            itemName = "New Installation";
-            text = `A new user has installed your app:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues, groupId);
-            break;
-        case 'app_subscription_created':
-            subject = 'New App Subscription Created';
-            itemName = "Subscription Created";
-            text = `A new subscription has been created:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues, groupId);
-            break;
-        case 'app_subscription_changed':
-            subject = 'App Subscription Changed';
-            itemName = "Subscription Changed";
-            text = `A subscription has been changed:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues, groupId);
-            break;
-        case 'uninstall':
-            subject = 'App Uninstalled';
-            itemName = "App Uninstalled";
-            text = `The app has been uninstalled:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues, groupId);
-            break;
-        case 'app_subscription_renewed':
-            subject = 'App Subscription Renewed';
-            itemName = "Subscription Renewed";
-            text = `A subscription has been renewed:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues, groupId);
-            break;
-        case 'app_subscription_cancelled':
-            subject = 'App Subscription Cancelled';
-            itemName = "Subscription Cancelled";
-            text = `A subscription has been cancelled:\n${JSON.stringify(data, null, 2)}`;
-            createMondayItem(itemName, columnValues, groupId);
-            break;
-        default:
-            res.sendStatus(200); // Ignore other events
-            return;
+    if (!boardId) {
+        console.error('No board mapping found for app:', data.app_id);
+        res.sendStatus(400);
+        return;
     }
 
-    sendEmail(subject, text);
+    // Build the column values dynamically using the column mapping
+    const columnValues = {
+        [columnMap.email]: { email: data.user_email, text: data.user_email },
+        [columnMap.firstName]: firstName,
+        [columnMap.lastName]: lastName,
+        [columnMap.timestamp]: { date: data.timestamp.split('T')[0] },
+        [columnMap.slug]: data.account_slug,
+        [columnMap.companyName]: data.account_name,
+        [columnMap.appId]: data.app_id.toString(),
+        [columnMap.cluster]: data.user_cluster,
+        [columnMap.maxUsers]: data.account_max_users.toString(),
+        [columnMap.accountId]: data.account_id.toString(),
+        [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '',
+        [columnMap.country]: { countryCode: data.user_country, countryName: getCountryName(data.user_country) }
+    };
+
+    try {
+        switch (notificationType) {
+            case 'install':
+                // Create a new item with the company name as the item name
+                await createMondayItem(data.account_name, columnValues, boardId);
+                break;
+            case 'uninstall':
+                const uninstallItemId = await getItemIdByAccountId(data.account_id, boardId);
+                if (uninstallItemId) {
+                    // Update the status column to 'Uninstalled'
+                    await updateMondayItem(uninstallItemId, { [columnMap.status]: { label: 'Uninstalled' } }, boardId);
+                }
+                break;
+            case 'app_subscription_created':
+                const createdSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
+                if (createdSubscriptionItemId) {
+                    // Update the status column to 'Subscription Created' and update the plan ID
+                    await updateMondayItem(createdSubscriptionItemId, {
+                        [columnMap.status]: { label: 'Subscription Created' },
+                        [columnMap.planId]: data.plan_id ? data.plan_id.toString() : ''
+                    }, boardId);
+                }
+                break;
+            case 'app_subscription_cancelled':
+                const cancelledSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
+                if (cancelledSubscriptionItemId) {
+                    // Update the status column to 'Subscription Cancelled'
+                    await updateMondayItem(cancelledSubscriptionItemId, { [columnMap.status]: { label: 'Subscription Cancelled' } }, boardId);
+                }
+                break;
+            case 'app_subscription_renewed':
+                const renewedSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
+                if (renewedSubscriptionItemId) {
+                    // Update the status column to 'Subscription Renewed'
+                    await updateMondayItem(renewedSubscriptionItemId, { [columnMap.status]: { label: 'Subscription Renewed' } }, boardId);
+                }
+                break;
+            default:
+                res.sendStatus(200); // Ignore other events
+                return;
+        }
+    } catch (error) {
+        console.error('Error handling webhook event:', error);
+    }
+
     res.sendStatus(200);
 });
+
+// Function to split full name into first and last name
+const splitName = (fullName) => {
+    const names = fullName.split(' ');
+    const firstName = names.slice(0, -1).join(' ');
+    const lastName = names.slice(-1).join(' ');
+    return { firstName, lastName };
+};
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
