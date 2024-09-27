@@ -111,13 +111,32 @@ const getItemIdByAccountId = async (accountId, boardId) => {
                 'Content-Type': 'application/json'
             }
         });
-        const items = response.data.data.items_by_column_values;
-        return items.length ? items[0].id : null; // Return the first matching item ID
+
+        // Log the entire response for debugging
+        console.log('Response from Monday.com for getItemIdByAccountId:', JSON.stringify(response.data, null, 2));
+
+        // Check if response data is valid before accessing 'items_by_column_values'
+        if (response.data && response.data.data && response.data.data.items_by_column_values) {
+            const items = response.data.data.items_by_column_values;
+
+            // Fallback: Check if items array is empty
+            if (!items || items.length === 0) {
+                console.error(`No items found with account ID: ${accountId} on board: ${boardId}`);
+                return null;
+            }
+
+            return items[0].id; // Return the first matching item ID
+        } else {
+            console.error('Invalid response structure:', response.data);
+            return null;
+        }
     } catch (error) {
         console.error('Error finding item by account ID:', error.response ? error.response.data : error.message);
         throw error;
     }
 };
+
+
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
