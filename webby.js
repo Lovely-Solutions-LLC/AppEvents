@@ -28,7 +28,7 @@ const columnMap = {
     companyName: 'text1__1',
     appId: 'text3__1',
     cluster: 'text0__1',
-    status: 'status74__1', // Updated status column ID to 'status74__1'
+    status: 'status74__1',
     maxUsers: 'account_max_users__1',
     accountId: 'text2__1',
     planId: 'text21__1',
@@ -50,6 +50,11 @@ const createMondayItem = async (itemName, columnValues, boardId) => {
         }
     `;
 
+    console.log('Creating a new item in Monday.com with the following details:');
+    console.log('Item Name:', itemName);
+    console.log('Column Values:', JSON.stringify(columnValues, null, 2));  // Log all column values
+    console.log('Board ID:', boardId);
+
     try {
         const response = await axios.post('https://api.monday.com/v2', { query }, {
             headers: {
@@ -57,42 +62,10 @@ const createMondayItem = async (itemName, columnValues, boardId) => {
                 'Content-Type': 'application/json'
             }
         });
-        console.log('Item created in Monday.com:', response.data);
+        console.log('Item created successfully in Monday.com. Response data:', JSON.stringify(response.data, null, 2));
         return response.data.data.create_item.id; // Return the new item ID for future updates
     } catch (error) {
         console.error('Error creating item in Monday.com:', error.response ? error.response.data : error.message);
-        throw error;
-    }
-};
-
-// Function to update an existing item in Monday.com
-const updateMondayItem = async (itemId, columnValues, boardId) => {
-    const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
-    const query = `
-        mutation {
-            change_multiple_column_values (
-                board_id: ${boardId},
-                item_id: ${itemId},
-                column_values: "${columnValuesString}"
-            ) {
-                id
-            }
-        }
-    `;
-
-    console.log('GraphQL Query for updateMondayItem:', query); // Log the query for debugging
-
-    try {
-        const response = await axios.post('https://api.monday.com/v2', { query }, {
-            headers: {
-                Authorization: MONDAY_API_TOKEN,
-                'Content-Type': 'application/json'
-            }
-        });
-        console.log('Item updated in Monday.com:', response.data);
-        return response.data;
-    } catch (error) {
-        console.error('Error updating item in Monday.com:', error.response ? error.response.data : error.message);
         throw error;
     }
 };
@@ -106,7 +79,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
                     items {
                         id
                         name
-                        column_values(ids: ["${columnMap.accountId}"]) {
+                        column_values(ids: ["text2__1"]) {
                             text
                         }
                     }
@@ -114,6 +87,8 @@ const getItemIdByAccountId = async (accountId, boardId) => {
             }
         }
     `;
+
+    console.log(`Fetching item ID for account ID: ${accountId} on board ID: ${boardId}`);
 
     try {
         const response = await axios.post('https://api.monday.com/v2', { query }, {
@@ -132,6 +107,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
             const item = items.find(item => item.column_values.some(column => column.text === accountId.toString()));
 
             if (item) {
+                console.log(`Found item with ID: ${item.id} for account ID: ${accountId}`);
                 return item.id; // Return the ID of the matching item
             } else {
                 console.error(`No items found with account ID: ${accountId} on board: ${boardId}`);
@@ -147,9 +123,40 @@ const getItemIdByAccountId = async (accountId, boardId) => {
     }
 };
 
+// Function to update an existing item in Monday.com
+const updateMondayItem = async (itemId, columnValues, boardId) => {
+    const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
+    const query = `
+        mutation {
+            change_column_values (
+                board_id: ${boardId},
+                item_id: ${itemId},
+                column_values: "${columnValuesString}"
+            ) {
+                id
+            }
+        }
+    `;
+
+    console.log('GraphQL Query for updateMondayItem:\n', query);  // Log the entire GraphQL query for troubleshooting
+
+    try {
+        const response = await axios.post('https://api.monday.com/v2', { query }, {
+            headers: {
+                Authorization: MONDAY_API_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        });
+        console.log('Item updated successfully in Monday.com. Response data:', JSON.stringify(response.data, null, 2));
+    } catch (error) {
+        console.error('Error updating item in Monday.com:', error.response ? error.response.data : error.message);
+        throw error;
+    }
+};
+
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
-    console.log('Webhook received:', req.body);
+    console.log('Webhook received:', JSON.stringify(req.body, null, 2));  // Log entire webhook payload for visibility
 
     const notificationType = req.body.type;
     const data = req.body.data;
@@ -179,23 +186,25 @@ app.post('/webhook', async (req, res) => {
         [columnMap.country]: { countryCode: data.user_country, countryName: getCountryName(data.user_country) }
     };
 
+    console.log('Column values for Monday item operation:', JSON.stringify(columnValues, null, 2));  // Log all column values
+
     try {
         switch (notificationType) {
             case 'install':
-                // Create a new item with the company name as the item name
+                console.log('Handling "install" event.');
                 await createMondayItem(data.account_name, columnValues, boardId);
                 break;
             case 'uninstall':
+                console.log('Handling "uninstall" event.');
                 const uninstallItemId = await getItemIdByAccountId(data.account_id, boardId);
                 if (uninstallItemId) {
-                    // Update the status column to 'Uninstalled'
                     await updateMondayItem(uninstallItemId, { [columnMap.status]: { label: 'Uninstalled' } }, boardId);
                 }
                 break;
             case 'app_subscription_created':
+                console.log('Handling "app_subscription_created" event.');
                 const createdSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
                 if (createdSubscriptionItemId) {
-                    // Update the status column to 'Subscription Created' and update the plan ID
                     await updateMondayItem(createdSubscriptionItemId, {
                         [columnMap.status]: { label: 'Subscription Created' },
                         [columnMap.planId]: data.plan_id ? data.plan_id.toString() : ''
@@ -203,21 +212,22 @@ app.post('/webhook', async (req, res) => {
                 }
                 break;
             case 'app_subscription_cancelled':
+                console.log('Handling "app_subscription_cancelled" event.');
                 const cancelledSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
                 if (cancelledSubscriptionItemId) {
-                    // Update the status column to 'Subscription Cancelled'
                     await updateMondayItem(cancelledSubscriptionItemId, { [columnMap.status]: { label: 'Subscription Cancelled' } }, boardId);
                 }
                 break;
             case 'app_subscription_renewed':
+                console.log('Handling "app_subscription_renewed" event.');
                 const renewedSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
                 if (renewedSubscriptionItemId) {
-                    // Update the status column to 'Subscription Renewed'
                     await updateMondayItem(renewedSubscriptionItemId, { [columnMap.status]: { label: 'Subscription Renewed' } }, boardId);
                 }
                 break;
             default:
-                res.sendStatus(200); // Ignore other events
+                console.log('Ignoring unhandled event type:', notificationType);
+                res.sendStatus(200);
                 return;
         }
     } catch (error) {
