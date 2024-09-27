@@ -66,6 +66,38 @@ const createMondayItem = async (itemName, columnValues, boardId) => {
 };
 
 // Function to update an existing item in Monday.com
+const updateMondayItem = async (itemId, columnValues, boardId) => {
+    const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
+    const query = `
+        mutation {
+            change_column_values (
+                board_id: ${boardId},
+                item_id: ${itemId},
+                column_values: "${columnValuesString}"
+            ) {
+                id
+            }
+        }
+    `;
+
+    console.log('GraphQL Query for updateMondayItem:', query); // Log the query for debugging
+
+    try {
+        const response = await axios.post('https://api.monday.com/v2', { query }, {
+            headers: {
+                Authorization: MONDAY_API_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        });
+        console.log('Item updated in Monday.com:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error updating item in Monday.com:', error.response ? error.response.data : error.message);
+        throw error;
+    }
+};
+
+// Function to get item ID by account ID
 const getItemIdByAccountId = async (accountId, boardId) => {
     const query = `
         query {
@@ -74,7 +106,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
                     items {
                         id
                         name
-                        column_values(ids: ["text2__1"]) {
+                        column_values(ids: ["${columnMap.accountId}"]) {
                             text
                         }
                     }
@@ -114,10 +146,6 @@ const getItemIdByAccountId = async (accountId, boardId) => {
         throw error;
     }
 };
-
-
-
-
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
