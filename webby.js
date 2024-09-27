@@ -66,40 +66,17 @@ const createMondayItem = async (itemName, columnValues, boardId) => {
 };
 
 // Function to update an existing item in Monday.com
-const updateMondayItem = async (itemId, columnValues, boardId) => {
-    const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
-    const query = `
-        mutation {
-            change_multiple_column_values (
-                board_id: ${boardId},
-                item_id: ${itemId},
-                column_values: "${columnValuesString}"
-            ) {
-                id
-            }
-        }
-    `;
-
-    try {
-        const response = await axios.post('https://api.monday.com/v2', { query }, {
-            headers: {
-                Authorization: MONDAY_API_TOKEN,
-                'Content-Type': 'application/json'
-            }
-        });
-        console.log('Item updated in Monday.com:', response.data);
-    } catch (error) {
-        console.error('Error updating item in Monday.com:', error.response ? error.response.data : error.message);
-    }
-};
-
-// Function to find an item ID by account ID
 const getItemIdByAccountId = async (accountId, boardId) => {
     const query = `
         query {
-            items_by_column_values(board_id: ${boardId}, column_id: "${columnMap.accountId}", column_value: "${accountId}") {
-                id
-                name
+            boards(ids: ${boardId}) {
+                items {
+                    id
+                    name
+                    column_values(ids: ["text2__1"]) {
+                        text
+                    }
+                }
             }
         }
     `;
@@ -112,20 +89,20 @@ const getItemIdByAccountId = async (accountId, boardId) => {
             }
         });
 
-        // Log the entire response for debugging
         console.log('Response from Monday.com for getItemIdByAccountId:', JSON.stringify(response.data, null, 2));
 
-        // Check if response data is valid before accessing 'items_by_column_values'
-        if (response.data && response.data.data && response.data.data.items_by_column_values) {
-            const items = response.data.data.items_by_column_values;
+        if (response.data && response.data.data && response.data.data.boards.length > 0) {
+            const items = response.data.data.boards[0].items;
 
-            // Fallback: Check if items array is empty
-            if (!items || items.length === 0) {
+            // Find item where the column with id "text2__1" (account_id column) matches the given accountId
+            const item = items.find(item => item.column_values.some(column => column.text === accountId.toString()));
+
+            if (item) {
+                return item.id; // Return the ID of the matching item
+            } else {
                 console.error(`No items found with account ID: ${accountId} on board: ${boardId}`);
                 return null;
             }
-
-            return items[0].id; // Return the first matching item ID
         } else {
             console.error('Invalid response structure:', response.data);
             return null;
@@ -135,6 +112,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
         throw error;
     }
 };
+
 
 
 
