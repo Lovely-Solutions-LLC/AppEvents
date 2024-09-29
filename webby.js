@@ -28,11 +28,12 @@ const columnMap = {
     companyName: 'text1__1',
     appId: 'text3__1',
     cluster: 'text0__1',
-    status: 'status74__1',
+    status: 'status74__1', // Reverted back to the original status column for status updates
     maxUsers: 'account_max_users__1',
     accountId: 'text2__1',
     planId: 'text21__1',
-    country: 'country__1'
+    country: 'country__1',
+    accountTier: 'status__1' // Separate status column specifically for account tier
 };
 
 // Function to create a new item in Monday.com
@@ -79,7 +80,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
                     items {
                         id
                         name
-                        column_values(ids: ["text2__1"]) {
+                        column_values(ids: ["text2__1"]) { // Uses accountId column to find the correct item
                             text
                         }
                     }
@@ -102,6 +103,8 @@ const getItemIdByAccountId = async (accountId, boardId) => {
 
         if (response.data && response.data.data && response.data.data.boards.length > 0) {
             const items = response.data.data.boards[0].items_page.items;
+
+            console.log('Items on board for uninstall event:', JSON.stringify(items, null, 2)); // Log all items for debugging
 
             // Find item where the column with id "text2__1" (account_id column) matches the given accountId
             const item = items.find(item => item.column_values.some(column => column.text === accountId.toString()));
@@ -183,7 +186,8 @@ app.post('/webhook', async (req, res) => {
         [columnMap.maxUsers]: data.account_max_users.toString(),
         [columnMap.accountId]: data.account_id.toString(),
         [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '',
-        [columnMap.country]: { countryCode: data.user_country, countryName: getCountryName(data.user_country) }
+        [columnMap.country]: { countryCode: data.user_country, countryName: getCountryName(data.user_country) },
+        [columnMap.accountTier]: { label: data.account_tier || 'Unknown' } // Populate account tier status label
     };
 
     console.log('Column values for Monday item operation:', JSON.stringify(columnValues, null, 2));  // Log all column values
