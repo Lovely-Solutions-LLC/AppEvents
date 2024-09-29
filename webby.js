@@ -130,34 +130,40 @@ const getItemIdByAccountId = async (accountId, boardId) => {
 
 // Function to update an existing item in Monday.com
 const updateMondayItem = async (itemId, columnValues, boardId) => {
-    const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
-    const query = `
-        mutation {
-            change_column_values (
-                board_id: ${boardId},
-                item_id: ${itemId},
-                column_values: "${columnValuesString}"
-            ) {
-                id
-            }
-        }
-    `;
-
-    console.log('GraphQL Query for updateMondayItem:\n', query);  // Log the entire GraphQL query for troubleshooting
-
     try {
-        const response = await axios.post('https://api.monday.com/v2', { query }, {
-            headers: {
-                Authorization: MONDAY_API_TOKEN,
-                'Content-Type': 'application/json'
-            }
-        });
-        console.log('Item updated successfully in Monday.com. Response data:', JSON.stringify(response.data, null, 2));
+        // Iterate through the column values to send separate mutations for each column
+        for (const [columnId, valueObject] of Object.entries(columnValues)) {
+            const valueString = JSON.stringify(valueObject).replace(/\"/g, '\\"'); // Format value as required by Monday.com API
+            const query = `
+                mutation {
+                    change_column_value (
+                        board_id: ${boardId},
+                        item_id: ${itemId},
+                        column_id: "${columnId}",
+                        value: "${valueString}"
+                    ) {
+                        id
+                    }
+                }
+            `;
+
+            console.log('GraphQL Query for updateMondayItem:\n', query);  // Log the GraphQL query for troubleshooting
+
+            const response = await axios.post('https://api.monday.com/v2', { query }, {
+                headers: {
+                    Authorization: MONDAY_API_TOKEN,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('Item updated successfully in Monday.com. Response data:', JSON.stringify(response.data, null, 2));
+        }
     } catch (error) {
         console.error('Error updating item in Monday.com:', error.response ? error.response.data : error.message);
         throw error;
     }
 };
+
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
