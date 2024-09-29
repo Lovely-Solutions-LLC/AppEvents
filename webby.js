@@ -73,13 +73,14 @@ const createMondayItem = async (itemName, columnValues, boardId) => {
 
 // Function to get item ID by account ID
 const getItemIdByAccountId = async (accountId, boardId) => {
+    // Construct a valid GraphQL query to get items from the board with the account ID column value
     const query = `
         query {
             boards(ids: ${boardId}) {
                 items {
                     id
                     name
-                    column_values(ids: "text2__1") { // Ensure correct syntax for querying column values
+                    column_values(ids: "text2__1") {  // This should only include column id without special characters
                         text
                     }
                 }
@@ -124,6 +125,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
         throw error;
     }
 };
+
 
 
 // Function to update an existing item in Monday.com
