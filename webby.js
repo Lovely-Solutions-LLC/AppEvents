@@ -76,19 +76,18 @@ const getItemIdByAccountId = async (accountId, boardId) => {
     const query = `
         query {
             boards(ids: ${boardId}) {
-                items_page {
-                    items {
-                        id
-                        name
-                        column_values(ids: ["text2__1"]) { // Uses accountId column to find the correct item
-                            text
-                        }
+                items {
+                    id
+                    name
+                    column_values(ids: "text2__1") { // Ensure correct syntax for querying column values
+                        text
                     }
                 }
             }
         }
     `;
 
+    console.log('GraphQL query for getItemIdByAccountId:\n', query); // Log the query for troubleshooting
     console.log(`Fetching item ID for account ID: ${accountId} on board ID: ${boardId}`);
 
     try {
@@ -102,7 +101,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
         console.log('Response from Monday.com for getItemIdByAccountId:', JSON.stringify(response.data, null, 2));
 
         if (response.data && response.data.data && response.data.data.boards.length > 0) {
-            const items = response.data.data.boards[0].items_page.items;
+            const items = response.data.data.boards[0].items;
 
             console.log('Items on board for uninstall event:', JSON.stringify(items, null, 2)); // Log all items for debugging
 
@@ -125,6 +124,7 @@ const getItemIdByAccountId = async (accountId, boardId) => {
         throw error;
     }
 };
+
 
 // Function to update an existing item in Monday.com
 const updateMondayItem = async (itemId, columnValues, boardId) => {
