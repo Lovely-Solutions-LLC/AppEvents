@@ -38,6 +38,13 @@ const columnMap = {
 
 // Function to create a new item in Monday.com
 const createMondayItem = async (itemName, columnValues, boardId) => {
+    // Ensure valid status labels for the account tier
+    const validStatusLabels = ['pro', 'standard', 'enterprise', 'free', 'basic'];
+    if (!validStatusLabels.includes(columnValues[columnMap.accountTier].label)) {
+        console.warn(`Invalid status label "${columnValues[columnMap.accountTier].label}". Setting default value "free".`);
+        columnValues[columnMap.accountTier].label = 'free'; // Set default value
+    }
+
     const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
     const query = `
         mutation {
@@ -47,6 +54,7 @@ const createMondayItem = async (itemName, columnValues, boardId) => {
                 column_values: "${columnValuesString}"
             ) {
                 id
+                name
             }
         }
     `;
@@ -63,13 +71,23 @@ const createMondayItem = async (itemName, columnValues, boardId) => {
                 'Content-Type': 'application/json'
             }
         });
-        console.log('Item created successfully in Monday.com. Response data:', JSON.stringify(response.data, null, 2));
-        return response.data.data.create_item.id; // Return the new item ID for future updates
+
+        console.log('Response from Monday.com:', JSON.stringify(response.data, null, 2));
+
+        // Check if the response contains the expected data structure
+        if (response.data && response.data.data && response.data.data.create_item) {
+            console.log('Item created successfully in Monday.com. Response data:', JSON.stringify(response.data.data.create_item, null, 2));
+            return response.data.data.create_item.id; // Return the new item ID for future updates
+        } else {
+            console.error('Unexpected response structure from Monday.com:', JSON.stringify(response.data, null, 2));
+            throw new Error('Failed to create item: Unexpected response structure.');
+        }
     } catch (error) {
         console.error('Error creating item in Monday.com:', error.response ? error.response.data : error.message);
         throw error;
     }
 };
+
 
 // Function to get item ID by account ID
 const getItemIdByAccountId = async (accountId, boardId) => {
@@ -181,22 +199,24 @@ app.post('/webhook', async (req, res) => {
         return;
     }
 
-    // Build the column values dynamically using the column mapping
-    const columnValues = {
-        [columnMap.email]: { email: data.user_email, text: data.user_email },
-        [columnMap.firstName]: firstName,
-        [columnMap.lastName]: lastName,
-        [columnMap.timestamp]: { date: data.timestamp.split('T')[0] },
-        [columnMap.slug]: data.account_slug,
-        [columnMap.companyName]: data.account_name,
-        [columnMap.appId]: data.app_id.toString(),
-        [columnMap.cluster]: data.user_cluster,
-        [columnMap.maxUsers]: data.account_max_users.toString(),
-        [columnMap.accountId]: data.account_id.toString(),
-        [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '',
-        [columnMap.country]: { countryCode: data.user_country, countryName: getCountryName(data.user_country) },
-        [columnMap.accountTier]: { label: data.account_tier || 'Unknown' } // Populate account tier status label
-    };
+// Build the column values dynamically using the column mapping
+const accountTier = data.account_tier || 'free'; // Set default value to 'free' if account_tier is null or undefined
+const columnValues = {
+    [columnMap.email]: { email: data.user_email, text: data.user_email },
+    [columnMap.firstName]: firstName,
+    [columnMap.lastName]: lastName,
+    [columnMap.timestamp]: { date: data.timestamp.split('T')[0] },
+    [columnMap.slug]: data.account_slug,
+    [columnMap.companyName]: data.account_name,
+    [columnMap.appId]: data.app_id.toString(),
+    [columnMap.cluster]: data.user_cluster,
+    [columnMap.maxUsers]: data.account_max_users.toString(),
+    [columnMap.accountId]: data.account_id.toString(),
+    [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '',
+    [columnMap.country]: { countryCode: data.user_country, countryName: getCountryName(data.user_country) },
+    [columnMap.accountTier]: { label: accountTier } // Use default or valid value
+};
+
 
     console.log('Column values for Monday item operation:', JSON.stringify(columnValues, null, 2));  // Log all column values
 
