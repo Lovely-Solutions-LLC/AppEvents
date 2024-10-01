@@ -88,7 +88,6 @@ const createMondayItem = async (itemName, columnValues, boardId) => {
     }
 };
 
-
 // Function to get item ID by account ID
 const getItemIdByAccountId = async (accountId, boardId) => {
     // Construct a valid GraphQL query using items_page to get items from the board with the account ID column value
@@ -146,42 +145,39 @@ const getItemIdByAccountId = async (accountId, boardId) => {
     }
 };
 
-// Function to update an existing item in Monday.com
+// Function to update multiple column values for an existing item in Monday.com
 const updateMondayItem = async (itemId, columnValues, boardId) => {
-    try {
-        // Iterate through the column values to send separate mutations for each column
-        for (const [columnId, valueObject] of Object.entries(columnValues)) {
-            const valueString = JSON.stringify(valueObject).replace(/\"/g, '\\"'); // Format value as required by Monday.com API
-            const query = `
-                mutation {
-                    change_column_value (
-                        board_id: ${boardId},
-                        item_id: ${itemId},
-                        column_id: "${columnId}",
-                        value: "${valueString}"
-                    ) {
-                        id
-                    }
-                }
-            `;
+    // Construct the column values string for GraphQL query
+    const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
 
-            console.log('GraphQL Query for updateMondayItem:\n', query);  // Log the GraphQL query for troubleshooting
-
-            const response = await axios.post('https://api.monday.com/v2', { query }, {
-                headers: {
-                    Authorization: MONDAY_API_TOKEN,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            console.log('Item updated successfully in Monday.com. Response data:', JSON.stringify(response.data, null, 2));
+    const query = `
+        mutation {
+            change_multiple_column_values (
+                board_id: ${boardId},
+                item_id: ${itemId},
+                column_values: "${columnValuesString}"
+            ) {
+                id
+            }
         }
+    `;
+
+    console.log('GraphQL Query for updateMondayItem:\n', query);  // Log the GraphQL query for troubleshooting
+
+    try {
+        const response = await axios.post('https://api.monday.com/v2', { query }, {
+            headers: {
+                Authorization: MONDAY_API_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log('Item updated successfully in Monday.com. Response data:', JSON.stringify(response.data, null, 2));
     } catch (error) {
         console.error('Error updating item in Monday.com:', error.response ? error.response.data : error.message);
         throw error;
     }
 };
-
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
@@ -199,24 +195,23 @@ app.post('/webhook', async (req, res) => {
         return;
     }
 
-// Build the column values dynamically using the column mapping
-const accountTier = data.account_tier || 'free'; // Set default value to 'free' if account_tier is null or undefined
-const columnValues = {
-    [columnMap.email]: { email: data.user_email, text: data.user_email },
-    [columnMap.firstName]: firstName,
-    [columnMap.lastName]: lastName,
-    [columnMap.timestamp]: { date: data.timestamp.split('T')[0] },
-    [columnMap.slug]: data.account_slug,
-    [columnMap.companyName]: data.account_name,
-    [columnMap.appId]: data.app_id.toString(),
-    [columnMap.cluster]: data.user_cluster,
-    [columnMap.maxUsers]: data.account_max_users.toString(),
-    [columnMap.accountId]: data.account_id.toString(),
-    [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '',
-    [columnMap.country]: { countryCode: data.user_country, countryName: getCountryName(data.user_country) },
-    [columnMap.accountTier]: { label: accountTier } // Use default or valid value
-};
-
+    // Build the column values dynamically using the column mapping
+    const accountTier = data.account_tier || 'free'; // Set default value to 'free' if account_tier is null or undefined
+    const columnValues = {
+        [columnMap.email]: { email: data.user_email, text: data.user_email },
+        [columnMap.firstName]: firstName,
+        [columnMap.lastName]: lastName,
+        [columnMap.timestamp]: { date: data.timestamp.split('T')[0] },
+        [columnMap.slug]: data.account_slug,
+        [columnMap.companyName]: data.account_name,
+        [columnMap.appId]: data.app_id.toString(),
+        [columnMap.cluster]: data.user_cluster,
+        [columnMap.maxUsers]: data.account_max_users.toString(),
+        [columnMap.accountId]: data.account_id.toString(),
+        [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '',
+        [columnMap.country]: { countryCode: data.user_country, countryName: getCountryName(data.user_country) },
+        [columnMap.accountTier]: { label: accountTier } // Use default or valid value
+    };
 
     console.log('Column values for Monday item operation:', JSON.stringify(columnValues, null, 2));  // Log all column values
 
@@ -238,8 +233,8 @@ const columnValues = {
                 const createdSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
                 if (createdSubscriptionItemId) {
                     await updateMondayItem(createdSubscriptionItemId, {
-                        [columnMap.status]: { label: 'Subscription Created' },
-                        [columnMap.planId]: data.plan_id ? data.plan_id.toString() : ''
+                        [columnMap.status]: { label: 'Subscription Created' }, // Update the status column
+                        [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '' // Update the plan ID column
                     }, boardId);
                 }
                 break;
