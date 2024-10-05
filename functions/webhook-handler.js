@@ -42,17 +42,205 @@ const splitName = (fullName) => {
 
 // Function to create a new item in Monday.com
 const createMondayItem = async (itemName, columnValues, boardId, MONDAY_API_TOKEN) => {
-  // ... existing code ...
+  console.log('Entered createMondayItem function');
+  console.log('Item Name:', itemName);
+  console.log('Board ID:', boardId);
+  console.log('Column Values:', JSON.stringify(columnValues, null, 2));
+
+  // Ensure valid status labels for the account tier
+  const validStatusLabels = ['pro', 'standard', 'enterprise', 'free', 'basic'];
+  if (!validStatusLabels.includes(columnValues[columnMap.accountTier]?.label)) {
+    console.warn(
+      `Invalid status label "${columnValues[columnMap.accountTier]?.label}". Setting default value "free".`
+    );
+    columnValues[columnMap.accountTier] = { label: 'free' }; // Set default value
+  }
+
+  // Construct the mutation query using GraphQL variables to avoid string escaping issues
+  const query = `
+    mutation createItem($boardId: Int!, $itemName: String!, $columnValues: JSON!) {
+      create_item(
+        board_id: $boardId,
+        item_name: $itemName,
+        column_values: $columnValues
+      ) {
+        id
+        name
+      }
+    }
+  `;
+
+  const variables = {
+    boardId: parseInt(boardId),
+    itemName,
+    columnValues: JSON.stringify(columnValues),
+  };
+
+  console.log('GraphQL Query for createMondayItem:\n', query);
+  console.log('Variables:', JSON.stringify(variables, null, 2));
+
+  try {
+    const response = await axios.post(
+      'https://api.monday.com/v2',
+      { query, variables },
+      {
+        headers: {
+          Authorization: MONDAY_API_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log('Response from Monday.com:', JSON.stringify(response.data, null, 2));
+
+    if (response.data && response.data.data && response.data.data.create_item) {
+      console.log(
+        'Item created successfully in Monday.com. Response data:',
+        JSON.stringify(response.data.data.create_item, null, 2)
+      );
+      return response.data.data.create_item.id; // Return the new item ID for future updates
+    } else if (response.data && response.data.errors) {
+      console.error('GraphQL errors:', JSON.stringify(response.data.errors, null, 2));
+      throw new Error('Failed to create item: ' + response.data.errors[0].message);
+    } else {
+      console.error('Unexpected response structure from Monday.com:', JSON.stringify(response.data, null, 2));
+      throw new Error('Failed to create item: Unexpected response structure.');
+    }
+  } catch (error) {
+    console.error(
+      'Error creating item in Monday.com:',
+      error.response ? JSON.stringify(error.response.data, null, 2) : error.message
+    );
+    throw error;
+  }
 };
 
 // Function to get item ID by account ID
 const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
-  // ... existing code ...
+  console.log('Entered getItemIdByAccountId function');
+  console.log('Account ID:', accountId);
+  console.log('Board ID:', boardId);
+
+  // Use items_by_column_values to efficiently find the item
+  const query = `
+    query getItemByAccountId($boardId: [Int], $columnId: String!, $columnValue: String!) {
+      boards(ids: $boardId) {
+        items_by_column_values(column_id: $columnId, column_value: $columnValue) {
+          id
+          name
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    boardId: parseInt(boardId),
+    columnId: columnMap.accountId,
+    columnValue: accountId.toString(),
+  };
+
+  console.log('GraphQL Query for getItemIdByAccountId:\n', query);
+  console.log('Variables:', JSON.stringify(variables, null, 2));
+
+  try {
+    const response = await axios.post(
+      'https://api.monday.com/v2',
+      { query, variables },
+      {
+        headers: {
+          Authorization: MONDAY_API_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log('Response from Monday.com for getItemIdByAccountId:', JSON.stringify(response.data, null, 2));
+
+    if (response.data && response.data.data && response.data.data.boards.length > 0) {
+      const items = response.data.data.boards[0].items_by_column_values;
+
+      if (items && items.length > 0) {
+        const item = items[0];
+        console.log(`Found item with ID: ${item.id} for account ID: ${accountId}`);
+        return item.id; // Return the ID of the matching item
+      } else {
+        console.error(`No items found with account ID: ${accountId} on board: ${boardId}`);
+        return null;
+      }
+    } else if (response.data && response.data.errors) {
+      console.error('GraphQL errors:', JSON.stringify(response.data.errors, null, 2));
+      throw new Error('Failed to get item: ' + response.data.errors[0].message);
+    } else {
+      console.error('Invalid response structure:', JSON.stringify(response.data, null, 2));
+      return null;
+    }
+  } catch (error) {
+    console.error(
+      'Error finding item by account ID:',
+      error.response ? JSON.stringify(error.response.data, null, 2) : error.message
+    );
+    throw error;
+  }
 };
 
 // Function to update multiple column values for an existing item in Monday.com
 const updateMondayItem = async (itemId, columnValues, boardId, MONDAY_API_TOKEN) => {
-  // ... existing code ...
+  console.log('Entered updateMondayItem function');
+  console.log('Item ID:', itemId);
+  console.log('Board ID:', boardId);
+  console.log('Column Values:', JSON.stringify(columnValues, null, 2));
+
+  const query = `
+    mutation updateItem($boardId: Int!, $itemId: Int!, $columnValues: JSON!) {
+      change_multiple_column_values(
+        board_id: $boardId,
+        item_id: $itemId,
+        column_values: $columnValues
+      ) {
+        id
+      }
+    }
+  `;
+
+  const variables = {
+    boardId: parseInt(boardId),
+    itemId: parseInt(itemId),
+    columnValues: JSON.stringify(columnValues),
+  };
+
+  console.log('GraphQL Query for updateMondayItem:\n', query);
+  console.log('Variables:', JSON.stringify(variables, null, 2));
+
+  try {
+    const response = await axios.post(
+      'https://api.monday.com/v2',
+      { query, variables },
+      {
+        headers: {
+          Authorization: MONDAY_API_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log('Response from Monday.com for updateMondayItem:', JSON.stringify(response.data, null, 2));
+
+    if (response.data && response.data.data && response.data.data.change_multiple_column_values) {
+      console.log('Item updated successfully in Monday.com.');
+    } else if (response.data && response.data.errors) {
+      console.error('GraphQL errors:', JSON.stringify(response.data.errors, null, 2));
+      throw new Error('Failed to update item: ' + response.data.errors[0].message);
+    } else {
+      console.error('Unexpected response structure from Monday.com:', JSON.stringify(response.data, null, 2));
+      throw new Error('Failed to update item: Unexpected response structure.');
+    }
+  } catch (error) {
+    console.error(
+      'Error updating item in Monday.com:',
+      error.response ? JSON.stringify(error.response.data, null, 2) : error.message
+    );
+    throw error;
+  }
 };
 
 // Export the handler function
