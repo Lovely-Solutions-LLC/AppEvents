@@ -145,7 +145,10 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
                 text
               }
             }
-            next_cursor
+            page_info {
+              has_next_page
+              cursor
+            }
           }
         }
       }
@@ -204,23 +207,33 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
         }
 
         // Check if there is a next page
-        if (itemsPage.next_cursor) {
-          cursor = itemsPage.next_cursor;
+        if (itemsPage.page_info && itemsPage.page_info.has_next_page) {
+          cursor = itemsPage.page_info.cursor;
           hasMoreItems = true;
         } else {
           hasMoreItems = false;
         }
       } else if (response.data && response.data.errors) {
-        console.error('GraphQL errors:', JSON.stringify(response.data.errors, null, 2));
-        throw new Error('Failed to get item: ' + response.data.errors[0].message);
+        console.error(
+          'GraphQL errors:',
+          JSON.stringify(response.data.errors, null, 2)
+        );
+        throw new Error(
+          'Failed to get item: ' + response.data.errors[0].message
+        );
       } else {
-        console.error('Invalid response structure:', JSON.stringify(response.data, null, 2));
+        console.error(
+          'Invalid response structure:',
+          JSON.stringify(response.data, null, 2)
+        );
         return null;
       }
     } catch (error) {
       console.error(
         'Error finding item by account ID:',
-        error.response ? JSON.stringify(error.response.data, null, 2) : error.message
+        error.response
+          ? JSON.stringify(error.response.data, null, 2)
+          : error.message
       );
       throw error;
     }
@@ -398,13 +411,15 @@ exports.handler = async (event, context) => {
     switch (notificationType) {
       case 'install':
         console.log('Handling "install" event.');
-        await createMondayItem(
+        const createdItemId = await createMondayItem(
           payload.account_name || 'Unnamed Account',
           columnValues,
           boardId,
           MONDAY_API_TOKEN
         );
+        console.log(`Created item ID: ${createdItemId}`);
         break;
+
       case 'uninstall':
         console.log('Handling "uninstall" event.');
         let uninstallItemId = null;
@@ -441,7 +456,112 @@ exports.handler = async (event, context) => {
           console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
         }
         break;
-      // Add other event types as needed
+
+      case 'app_subscription_created':
+        console.log('Handling "app_subscription_created" event.');
+        let createdSubscriptionItemId = null;
+        attempts = 0;
+        while (!createdSubscriptionItemId && attempts < maxAttempts) {
+          attempts++;
+          try {
+            createdSubscriptionItemId = await getItemIdByAccountId(
+              payload.account_id,
+              boardId,
+              MONDAY_API_TOKEN
+            );
+            if (!createdSubscriptionItemId) {
+              console.log(`Attempt ${attempts}: Item not found. Retrying in ${delay}ms...`);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          } catch (error) {
+            console.error('Error during item retrieval:', error);
+            break;
+          }
+        }
+
+        if (createdSubscriptionItemId) {
+          await updateMondayItem(
+            createdSubscriptionItemId,
+            {
+              [columnMap.status]: { label: 'Subscription Created' }, // Update the status column
+              [columnMap.planId]: payload.plan_id ? payload.plan_id.toString() : '', // Update the plan ID column
+            },
+            boardId,
+            MONDAY_API_TOKEN
+          );
+        } else {
+          console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
+        }
+        break;
+
+      case 'app_subscription_cancelled':
+        console.log('Handling "app_subscription_cancelled" event.');
+        let cancelledSubscriptionItemId = null;
+        attempts = 0;
+        while (!cancelledSubscriptionItemId && attempts < maxAttempts) {
+          attempts++;
+          try {
+            cancelledSubscriptionItemId = await getItemIdByAccountId(
+              payload.account_id,
+              boardId,
+              MONDAY_API_TOKEN
+            );
+            if (!cancelledSubscriptionItemId) {
+              console.log(`Attempt ${attempts}: Item not found. Retrying in ${delay}ms...`);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          } catch (error) {
+            console.error('Error during item retrieval:', error);
+            break;
+          }
+        }
+
+        if (cancelledSubscriptionItemId) {
+          await updateMondayItem(
+            cancelledSubscriptionItemId,
+            { [columnMap.status]: { label: 'Subscription Cancelled' } },
+            boardId,
+            MONDAY_API_TOKEN
+          );
+        } else {
+          console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
+        }
+        break;
+
+      case 'app_subscription_renewed':
+        console.log('Handling "app_subscription_renewed" event.');
+        let renewedSubscriptionItemId = null;
+        attempts = 0;
+        while (!renewedSubscriptionItemId && attempts < maxAttempts) {
+          attempts++;
+          try {
+            renewedSubscriptionItemId = await getItemIdByAccountId(
+              payload.account_id,
+              boardId,
+              MONDAY_API_TOKEN
+            );
+            if (!renewedSubscriptionItemId) {
+              console.log(`Attempt ${attempts}: Item not found. Retrying in ${delay}ms...`);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          } catch (error) {
+            console.error('Error during item retrieval:', error);
+            break;
+          }
+        }
+
+        if (renewedSubscriptionItemId) {
+          await updateMondayItem(
+            renewedSubscriptionItemId,
+            { [columnMap.status]: { label: 'Subscription Renewed' } },
+            boardId,
+            MONDAY_API_TOKEN
+          );
+        } else {
+          console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
+        }
+        break;
+
       default:
         console.log('Ignoring unhandled event type:', notificationType);
         return {
