@@ -433,7 +433,108 @@ exports.handler = async (event, context) => {
         }
         break;
 
-      // Add other event types as needed
+      case 'subscription_created':
+        console.log('Handling "subscription_created" event.');
+        let createdSubscriptionItemId = null;
+        attempts = 0;
+        while (!createdSubscriptionItemId && attempts < maxAttempts) {
+          attempts++;
+          try {
+            createdSubscriptionItemId = await getItemIdByAccountId(
+              payload.account_id,
+              boardId,
+              MONDAY_API_TOKEN
+            );
+            if (!createdSubscriptionItemId) {
+              console.log(`Attempt ${attempts}: Item not found. Retrying in ${delay}ms...`);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          } catch (error) {
+            console.error('Error during item retrieval:', error);
+            break;
+          }
+        }
+
+        if (createdSubscriptionItemId) {
+          await updateMondayItem(
+            createdSubscriptionItemId,
+            { [columnMap.status]: { label: 'Subscription Created' } },
+            boardId,
+            MONDAY_API_TOKEN
+          );
+        } else {
+          console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
+        }
+        break;
+
+      case 'subscription_cancelled':
+        console.log('Handling "subscription_cancelled" event.');
+        let cancelledSubscriptionItemId = null;
+        attempts = 0;
+        while (!cancelledSubscriptionItemId && attempts < maxAttempts) {
+          attempts++;
+          try {
+            cancelledSubscriptionItemId = await getItemIdByAccountId(
+              payload.account_id,
+              boardId,
+              MONDAY_API_TOKEN
+            );
+            if (!cancelledSubscriptionItemId) {
+              console.log(`Attempt ${attempts}: Item not found. Retrying in ${delay}ms...`);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          } catch (error) {
+            console.error('Error during item retrieval:', error);
+            break;
+          }
+        }
+
+        if (cancelledSubscriptionItemId) {
+          await updateMondayItem(
+            cancelledSubscriptionItemId,
+            { [columnMap.status]: { label: 'Subscription Cancelled' } },
+            boardId,
+            MONDAY_API_TOKEN
+          );
+        } else {
+          console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
+        }
+        break;
+
+      case 'subscription_renewed':
+        console.log('Handling "subscription_renewed" event.');
+        let renewedSubscriptionItemId = null;
+        attempts = 0;
+        while (!renewedSubscriptionItemId && attempts < maxAttempts) {
+          attempts++;
+          try {
+            renewedSubscriptionItemId = await getItemIdByAccountId(
+              payload.account_id,
+              boardId,
+              MONDAY_API_TOKEN
+            );
+            if (!renewedSubscriptionItemId) {
+              console.log(`Attempt ${attempts}: Item not found. Retrying in ${delay}ms...`);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          } catch (error) {
+            console.error('Error during item retrieval:', error);
+            break;
+          }
+        }
+
+        if (renewedSubscriptionItemId) {
+          await updateMondayItem(
+            renewedSubscriptionItemId,
+            { [columnMap.status]: { label: 'Subscription Renewed' } },
+            boardId,
+            MONDAY_API_TOKEN
+          );
+        } else {
+          console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
+        }
+        break;
+
       default:
         console.log('Ignoring unhandled event type:', notificationType);
         return {
