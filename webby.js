@@ -15,7 +15,8 @@ const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
 const boardIdMapping = {
     '10142077': '7517528529', // Board ID for App 10142077 (Status Label Descriptions)
     '10126111': '7517444546', // Board ID for App 10126111 (Update Templates)
-    '10147286': '7517579690'  // Board ID for App 10147286 (Facebook Embedded)
+    '10147286': '7517579690',  // Board ID for App 10147286 (Facebook Embedded)
+    '10172591': '7540627206'
 };
 
 // Column IDs (Same across all boards)
