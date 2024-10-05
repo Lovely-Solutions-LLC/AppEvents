@@ -1,0 +1,8 @@
+[build]
+  functions = "functions"
+  command = "npm install"
+
+[[redirects]]
+  from = "/webhook"
+  to = "/.netlify/functions/webhook-handler"
+  status = 200
