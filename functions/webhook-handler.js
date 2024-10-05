@@ -147,7 +147,7 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
       {
         column_id: columnMap.accountId,
         compare_value: [accountId.toString()],
-        operator: 'eq', // Assuming 'eq' is the correct operator for equality
+        operator: 'any_of', // Changed from 'eq' to 'any_of'
       },
     ],
     operator: 'and',
