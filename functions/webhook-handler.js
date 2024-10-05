@@ -125,7 +125,7 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
   console.log('Board ID:', boardId);
 
   const query = `
-    query getItemByAccountId($boardId: ID!, $limit: Int!, $queryParams: ItemsPageQuery!) {
+    query getItemByAccountId($boardId: ID!, $limit: Int!, $queryParams: ItemsQuery!) {
       boards(ids: [$boardId]) {
         items_page(limit: $limit, query_params: $queryParams) {
           cursor
@@ -147,7 +147,7 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
       {
         column_id: columnMap.accountId,
         compare_value: [accountId.toString()],
-        operator: 'eq',
+        operator: 'eq', // Assuming 'eq' is the correct operator for equality
       },
     ],
     operator: 'and',
