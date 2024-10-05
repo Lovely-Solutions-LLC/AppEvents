@@ -125,20 +125,23 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
   console.log('Board ID:', boardId);
 
   const query = `
-    query getItemByAccountId($boardId: [Int], $columnId: String!, $columnValue: String!) {
+    query getItemByAccountId($boardId: [ID!], $columnId: String!) {
       boards(ids: $boardId) {
-        items_by_column_values(column_id: $columnId, column_value: $columnValue) {
+        items {
           id
           name
+          column_values(ids: [$columnId]) {
+            id
+            text
+          }
         }
       }
     }
   `;
 
   const variables = {
-    boardId: [parseInt(boardId)], // For boards(ids: [Int])
+    boardId: [boardId.toString()],
     columnId: columnMap.accountId,
-    columnValue: accountId.toString(),
   };
 
   console.log('GraphQL Query for getItemIdByAccountId:\n', query);
@@ -156,17 +159,33 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
       }
     );
 
-    console.log('Response from Monday.com for getItemIdByAccountId:', JSON.stringify(response.data, null, 2));
+    console.log(
+      'Response from Monday.com for getItemIdByAccountId:',
+      JSON.stringify(response.data, null, 2)
+    );
 
     if (response.data && response.data.data && response.data.data.boards.length > 0) {
-      const items = response.data.data.boards[0].items_by_column_values;
+      const items = response.data.data.boards[0].items;
 
       if (items && items.length > 0) {
-        const item = items[0];
-        console.log(`Found item with ID: ${item.id} for account ID: ${accountId}`);
-        return item.id; // Return the ID of the matching item
+        // Find the item with the matching accountId in the specified column
+        const item = items.find((item) =>
+          item.column_values.some(
+            (column) =>
+              column.id === columnMap.accountId &&
+              column.text === accountId.toString()
+          )
+        );
+
+        if (item) {
+          console.log(`Found item with ID: ${item.id} for account ID: ${accountId}`);
+          return item.id; // Return the ID of the matching item
+        } else {
+          console.error(`No items found with account ID: ${accountId} on board: ${boardId}`);
+          return null;
+        }
       } else {
-        console.error(`No items found with account ID: ${accountId} on board: ${boardId}`);
+        console.error(`No items found on board: ${boardId}`);
         return null;
       }
     } else if (response.data && response.data.errors) {
@@ -389,6 +408,8 @@ exports.handler = async (event, context) => {
             boardId,
             MONDAY_API_TOKEN
           );
+        } else {
+          console.error(`No item found with account ID: ${payload.account_id}`);
         }
         break;
       case 'app_subscription_cancelled':
@@ -405,6 +426,8 @@ exports.handler = async (event, context) => {
             boardId,
             MONDAY_API_TOKEN
           );
+        } else {
+          console.error(`No item found with account ID: ${payload.account_id}`);
         }
         break;
       case 'app_subscription_renewed':
@@ -421,6 +444,8 @@ exports.handler = async (event, context) => {
             boardId,
             MONDAY_API_TOKEN
           );
+        } else {
+          console.error(`No item found with account ID: ${payload.account_id}`);
         }
         break;
       default:
