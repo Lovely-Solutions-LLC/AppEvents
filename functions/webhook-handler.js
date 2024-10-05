@@ -56,7 +56,7 @@ const createMondayItem = async (itemName, columnValues, boardId, MONDAY_API_TOKE
     columnValues[columnMap.accountTier] = { label: 'free' }; // Set default value
   }
 
-  // Updated mutation with correct variable types
+  // Mutation with correct variable types
   const query = `
     mutation createItem($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
       create_item(
@@ -118,21 +118,23 @@ const createMondayItem = async (itemName, columnValues, boardId, MONDAY_API_TOKE
   }
 };
 
-// Function to get item ID by account ID
+// Function to get item ID by account ID using items_page
 const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
   console.log('Entered getItemIdByAccountId function');
   console.log('Account ID:', accountId);
   console.log('Board ID:', boardId);
 
   const query = `
-    query getItemByAccountId($boardId: [ID!], $columnId: String!) {
-      boards(ids: $boardId) {
-        items {
-          id
-          name
-          column_values(ids: [$columnId]) {
+    query getItemByAccountId($boardId: ID!, $columnId: String!, $limit: Int!) {
+      boards(ids: [$boardId]) {
+        items_page(limit: $limit) {
+          items {
             id
-            text
+            name
+            column_values(ids: [$columnId]) {
+              id
+              text
+            }
           }
         }
       }
@@ -140,8 +142,9 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
   `;
 
   const variables = {
-    boardId: [boardId.toString()],
+    boardId: boardId.toString(),
     columnId: columnMap.accountId,
+    limit: 1000, // Adjust the limit as needed
   };
 
   console.log('GraphQL Query for getItemIdByAccountId:\n', query);
@@ -164,8 +167,12 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
       JSON.stringify(response.data, null, 2)
     );
 
-    if (response.data && response.data.data && response.data.data.boards.length > 0) {
-      const items = response.data.data.boards[0].items;
+    if (
+      response.data &&
+      response.data.data &&
+      response.data.data.boards.length > 0
+    ) {
+      const items = response.data.data.boards[0].items_page.items;
 
       if (items && items.length > 0) {
         // Find the item with the matching accountId in the specified column
@@ -252,7 +259,10 @@ const updateMondayItem = async (itemId, columnValues, boardId, MONDAY_API_TOKEN)
       console.error('GraphQL errors:', JSON.stringify(response.data.errors, null, 2));
       throw new Error('Failed to update item: ' + response.data.errors[0].message);
     } else {
-      console.error('Unexpected response structure from Monday.com:', JSON.stringify(response.data, null, 2));
+      console.error(
+        'Unexpected response structure from Monday.com:',
+        JSON.stringify(response.data, null, 2)
+      );
       throw new Error('Failed to update item: Unexpected response structure.');
     }
   } catch (error) {
