@@ -56,9 +56,9 @@ const createMondayItem = async (itemName, columnValues, boardId, MONDAY_API_TOKE
     columnValues[columnMap.accountTier] = { label: 'free' }; // Set default value
   }
 
-  // Construct the mutation query using GraphQL variables to avoid string escaping issues
+  // Updated mutation with correct variable types
   const query = `
-    mutation createItem($boardId: Int!, $itemName: String!, $columnValues: JSON!) {
+    mutation createItem($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
       create_item(
         board_id: $boardId,
         item_name: $itemName,
@@ -71,7 +71,7 @@ const createMondayItem = async (itemName, columnValues, boardId, MONDAY_API_TOKE
   `;
 
   const variables = {
-    boardId: parseInt(boardId),
+    boardId: boardId.toString(), // Ensure boardId is a string
     itemName,
     columnValues: JSON.stringify(columnValues),
   };
@@ -103,7 +103,10 @@ const createMondayItem = async (itemName, columnValues, boardId, MONDAY_API_TOKE
       console.error('GraphQL errors:', JSON.stringify(response.data.errors, null, 2));
       throw new Error('Failed to create item: ' + response.data.errors[0].message);
     } else {
-      console.error('Unexpected response structure from Monday.com:', JSON.stringify(response.data, null, 2));
+      console.error(
+        'Unexpected response structure from Monday.com:',
+        JSON.stringify(response.data, null, 2)
+      );
       throw new Error('Failed to create item: Unexpected response structure.');
     }
   } catch (error) {
@@ -121,7 +124,6 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
   console.log('Account ID:', accountId);
   console.log('Board ID:', boardId);
 
-  // Use items_by_column_values to efficiently find the item
   const query = `
     query getItemByAccountId($boardId: [Int], $columnId: String!, $columnValue: String!) {
       boards(ids: $boardId) {
@@ -134,7 +136,7 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
   `;
 
   const variables = {
-    boardId: parseInt(boardId),
+    boardId: [parseInt(boardId)], // For boards(ids: [Int])
     columnId: columnMap.accountId,
     columnValue: accountId.toString(),
   };
@@ -191,7 +193,7 @@ const updateMondayItem = async (itemId, columnValues, boardId, MONDAY_API_TOKEN)
   console.log('Column Values:', JSON.stringify(columnValues, null, 2));
 
   const query = `
-    mutation updateItem($boardId: Int!, $itemId: Int!, $columnValues: JSON!) {
+    mutation updateItem($boardId: ID!, $itemId: Int!, $columnValues: JSON!) {
       change_multiple_column_values(
         board_id: $boardId,
         item_id: $itemId,
@@ -203,7 +205,7 @@ const updateMondayItem = async (itemId, columnValues, boardId, MONDAY_API_TOKEN)
   `;
 
   const variables = {
-    boardId: parseInt(boardId),
+    boardId: boardId.toString(), // Ensure boardId is a string
     itemId: parseInt(itemId),
     columnValues: JSON.stringify(columnValues),
   };
