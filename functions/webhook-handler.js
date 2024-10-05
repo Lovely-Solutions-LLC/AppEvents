@@ -5,10 +5,10 @@ const { getCountryName } = require('../countryTranslator'); // Adjust the path i
 
 // Board ID mapping based on app ID
 const boardIdMapping = {
-  '10142077': '7517528529', // Board ID for App 10142077 (Status Label Descriptions)
-  '10126111': '7517444546', // Board ID for App 10126111 (Update Templates)
-  '10147286': '7517579690', // Board ID for App 10147286 (Facebook Embedded)
-  '10172591': '7540627206', // Board ID for App 10172591 (Ultimate Team Productivity Tool)
+  '10142077': '7517528529', // Status Label Descriptions
+  '10126111': '7517444546', // Update Templates
+  '10147286': '7517579690', // Facebook Embedded
+  '10172591': '7540627206', // Ultimate Team Productivity Tool
 };
 
 // Column IDs (Same across all boards)
@@ -21,12 +21,12 @@ const columnMap = {
   companyName: 'text1__1',
   appId: 'text3__1',
   cluster: 'text0__1',
-  status: 'status74__1', // Status updates
+  status: 'status74__1',
   maxUsers: 'account_max_users__1',
   accountId: 'text2__1',
   planId: 'text21__1',
   country: 'country__1',
-  accountTier: 'status__1', // Account tier
+  accountTier: 'status__1',
 };
 
 // Function to split full name into first and last name
@@ -41,178 +41,18 @@ const splitName = (fullName) => {
 };
 
 // Function to create a new item in Monday.com
-const createMondayItem = async (itemName, columnValues, boardId) => {
-  // Ensure valid status labels for the account tier
-  const validStatusLabels = ['pro', 'standard', 'enterprise', 'free', 'basic'];
-  if (!validStatusLabels.includes(columnValues[columnMap.accountTier]?.label)) {
-    console.warn(
-      `Invalid status label "${columnValues[columnMap.accountTier]?.label}". Setting default value "free".`
-    );
-    columnValues[columnMap.accountTier] = { label: 'free' }; // Set default value
-  }
-
-  const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
-  const query = `
-    mutation {
-      create_item (
-        board_id: ${boardId},
-        item_name: "${itemName}",
-        column_values: "${columnValuesString}"
-      ) {
-        id
-        name
-      }
-    }
-  `;
-
-  console.log('Creating a new item in Monday.com with the following details:');
-  console.log('Item Name:', itemName);
-  console.log('Column Values:', JSON.stringify(columnValues, null, 2)); // Log all column values
-  console.log('Board ID:', boardId);
-
-  try {
-    const response = await axios.post(
-      'https://api.monday.com/v2',
-      { query },
-      {
-        headers: {
-          Authorization: MONDAY_API_TOKEN,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    console.log('Response from Monday.com:', JSON.stringify(response.data, null, 2));
-
-    // Check if the response contains the expected data structure
-    if (response.data && response.data.data && response.data.data.create_item) {
-      console.log(
-        'Item created successfully in Monday.com. Response data:',
-        JSON.stringify(response.data.data.create_item, null, 2)
-      );
-      return response.data.data.create_item.id; // Return the new item ID for future updates
-    } else {
-      console.error('Unexpected response structure from Monday.com:', JSON.stringify(response.data, null, 2));
-      throw new Error('Failed to create item: Unexpected response structure.');
-    }
-  } catch (error) {
-    console.error(
-      'Error creating item in Monday.com:',
-      error.response ? error.response.data : error.message
-    );
-    throw error;
-  }
+const createMondayItem = async (itemName, columnValues, boardId, MONDAY_API_TOKEN) => {
+  // ... existing code ...
 };
 
 // Function to get item ID by account ID
-const getItemIdByAccountId = async (accountId, boardId) => {
-  // Construct a valid GraphQL query using items to get items from the board with the account ID column value
-  const query = `
-    query {
-      boards(ids: ${boardId}) {
-        items(limit: 500) {
-          id
-          name
-          column_values(ids: "${columnMap.accountId}") {
-            text
-          }
-        }
-      }
-    }
-  `;
-
-  console.log('GraphQL query for getItemIdByAccountId:\n', query); // Log the query for troubleshooting
-  console.log(`Fetching item ID for account ID: ${accountId} on board ID: ${boardId}`);
-
-  try {
-    const response = await axios.post(
-      'https://api.monday.com/v2',
-      { query },
-      {
-        headers: {
-          Authorization: MONDAY_API_TOKEN,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    console.log(
-      'Response from Monday.com for getItemIdByAccountId:',
-      JSON.stringify(response.data, null, 2)
-    );
-
-    if (response.data && response.data.data && response.data.data.boards.length > 0) {
-      const items = response.data.data.boards[0].items;
-
-      console.log('Items on board:', JSON.stringify(items, null, 2)); // Log all items for debugging
-
-      // Find item where the column with id "accountId" matches the given accountId
-      const item = items.find((item) =>
-        item.column_values.some((column) => column.text === accountId.toString())
-      );
-
-      if (item) {
-        console.log(`Found item with ID: ${item.id} for account ID: ${accountId}`);
-        return item.id; // Return the ID of the matching item
-      } else {
-        console.error(`No items found with account ID: ${accountId} on board: ${boardId}`);
-        return null;
-      }
-    } else {
-      console.error('Invalid response structure:', response.data);
-      return null;
-    }
-  } catch (error) {
-    console.error(
-      'Error finding item by account ID:',
-      error.response ? error.response.data : error.message
-    );
-    throw error;
-  }
+const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
+  // ... existing code ...
 };
 
 // Function to update multiple column values for an existing item in Monday.com
-const updateMondayItem = async (itemId, columnValues, boardId) => {
-  // Construct the column values string for GraphQL query
-  const columnValuesString = JSON.stringify(columnValues).replace(/\"/g, '\\"');
-
-  const query = `
-    mutation {
-      change_multiple_column_values (
-        board_id: ${boardId},
-        item_id: ${itemId},
-        column_values: "${columnValuesString}"
-      ) {
-        id
-      }
-    }
-  `;
-
-  console.log('GraphQL Query for updateMondayItem:\n', query); // Log the GraphQL query for troubleshooting
-
-  try {
-    const response = await axios.post(
-      'https://api.monday.com/v2',
-      { query },
-      {
-        headers: {
-          Authorization: MONDAY_API_TOKEN,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    console.log(
-      'Item updated successfully in Monday.com. Response data:',
-      JSON.stringify(response.data, null, 2)
-    );
-  } catch (error) {
-    console.error(
-      'Error updating item in Monday.com:',
-      error.response ? error.response.data : error.message
-    );
-    throw error;
-  }
+const updateMondayItem = async (itemId, columnValues, boardId, MONDAY_API_TOKEN) => {
+  // ... existing code ...
 };
 
 // Export the handler function
@@ -320,20 +160,23 @@ exports.handler = async (event, context) => {
         await createMondayItem(
           payload.account_name || 'Unnamed Account',
           columnValues,
-          boardId
+          boardId,
+          MONDAY_API_TOKEN
         );
         break;
       case 'uninstall':
         console.log('Handling "uninstall" event.');
         const uninstallItemId = await getItemIdByAccountId(
           payload.account_id,
-          boardId
+          boardId,
+          MONDAY_API_TOKEN
         );
         if (uninstallItemId) {
           await updateMondayItem(
             uninstallItemId,
             { [columnMap.status]: { label: 'Uninstalled' } },
-            boardId
+            boardId,
+            MONDAY_API_TOKEN
           );
         } else {
           console.error(`No item found with account ID: ${payload.account_id}`);
@@ -343,7 +186,8 @@ exports.handler = async (event, context) => {
         console.log('Handling "app_subscription_created" event.');
         const createdSubscriptionItemId = await getItemIdByAccountId(
           payload.account_id,
-          boardId
+          boardId,
+          MONDAY_API_TOKEN
         );
         if (createdSubscriptionItemId) {
           await updateMondayItem(
@@ -352,7 +196,8 @@ exports.handler = async (event, context) => {
               [columnMap.status]: { label: 'Subscription Created' }, // Update the status column
               [columnMap.planId]: payload.plan_id ? payload.plan_id.toString() : '', // Update the plan ID column
             },
-            boardId
+            boardId,
+            MONDAY_API_TOKEN
           );
         }
         break;
@@ -360,13 +205,15 @@ exports.handler = async (event, context) => {
         console.log('Handling "app_subscription_cancelled" event.');
         const cancelledSubscriptionItemId = await getItemIdByAccountId(
           payload.account_id,
-          boardId
+          boardId,
+          MONDAY_API_TOKEN
         );
         if (cancelledSubscriptionItemId) {
           await updateMondayItem(
             cancelledSubscriptionItemId,
             { [columnMap.status]: { label: 'Subscription Cancelled' } },
-            boardId
+            boardId,
+            MONDAY_API_TOKEN
           );
         }
         break;
@@ -374,13 +221,15 @@ exports.handler = async (event, context) => {
         console.log('Handling "app_subscription_renewed" event.');
         const renewedSubscriptionItemId = await getItemIdByAccountId(
           payload.account_id,
-          boardId
+          boardId,
+          MONDAY_API_TOKEN
         );
         if (renewedSubscriptionItemId) {
           await updateMondayItem(
             renewedSubscriptionItemId,
             { [columnMap.status]: { label: 'Subscription Renewed' } },
-            boardId
+            boardId,
+            MONDAY_API_TOKEN
           );
         }
         break;
