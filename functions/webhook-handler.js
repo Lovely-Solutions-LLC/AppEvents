@@ -118,129 +118,74 @@ const createMondayItem = async (itemName, columnValues, boardId, MONDAY_API_TOKE
   }
 };
 
-// Function to get item ID by account ID using pagination
+// Function to get item ID by account ID using items_by_column_values
 const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
   console.log('Entered getItemIdByAccountId function');
   console.log('Account ID:', accountId);
   console.log('Board ID:', boardId);
 
-  const limit = 500; // Maximum allowed by monday.com API
-  let cursor = null;
-  let hasMoreItems = true;
-  let iteration = 0;
-
-  while (hasMoreItems) {
-    iteration++;
-    console.log(`Fetching items page ${iteration} with cursor:`, cursor);
-
-    const query = `
-      query getItemByAccountId($boardId: [ID!]!, $columnId: [String!]!, $limit: Int!, $cursor: String) {
-        boards(ids: $boardId) {
-          items_page(limit: $limit, cursor: $cursor) {
-            items {
-              id
-              name
-              column_values(ids: $columnId) {
-                id
-                text
-              }
-            }
-            page_info {
-              has_next_page
-              cursor
-            }
-          }
-        }
+  const query = `
+    query getItemByAccountId($boardId: ID!, $columnId: String!, $columnValue: String!) {
+      items_by_column_values(
+        board_id: $boardId,
+        column_id: $columnId,
+        column_value: $columnValue
+      ) {
+        id
+        name
       }
-    `;
-
-    const variables = {
-      boardId: [boardId.toString()],
-      columnId: [columnMap.accountId],
-      limit,
-      cursor,
-    };
-
-    console.log('GraphQL Query for getItemIdByAccountId:\n', query);
-    console.log('Variables:', JSON.stringify(variables, null, 2));
-
-    try {
-      const response = await axios.post(
-        'https://api.monday.com/v2',
-        { query, variables },
-        {
-          headers: {
-            Authorization: MONDAY_API_TOKEN,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      console.log(
-        'Response from Monday.com for getItemIdByAccountId:',
-        JSON.stringify(response.data, null, 2)
-      );
-
-      if (response.data && response.data.data && response.data.data.boards.length > 0) {
-        const itemsPage = response.data.data.boards[0].items_page;
-        const items = itemsPage.items;
-
-        console.log(`Retrieved ${items.length} items from page ${iteration}`);
-
-        if (items && items.length > 0) {
-          // Log each item's accountId for debugging
-          for (const item of items) {
-            const accountIdColumn = item.column_values.find(
-              (column) => column.id === columnMap.accountId
-            );
-            console.log(
-              `Item ID: ${item.id}, Account ID in item: ${accountIdColumn?.text}`
-            );
-
-            if (accountIdColumn && accountIdColumn.text === accountId.toString()) {
-              console.log(
-                `Found item with ID: ${item.id} for account ID: ${accountId}`
-              );
-              return item.id; // Return the ID of the matching item
-            }
-          }
-        }
-
-        // Check if there is a next page
-        if (itemsPage.page_info && itemsPage.page_info.has_next_page) {
-          cursor = itemsPage.page_info.cursor;
-          hasMoreItems = true;
-        } else {
-          hasMoreItems = false;
-        }
-      } else if (response.data && response.data.errors) {
-        console.error(
-          'GraphQL errors:',
-          JSON.stringify(response.data.errors, null, 2)
-        );
-        throw new Error(
-          'Failed to get item: ' + response.data.errors[0].message
-        );
-      } else {
-        console.error(
-          'Invalid response structure:',
-          JSON.stringify(response.data, null, 2)
-        );
-        return null;
-      }
-    } catch (error) {
-      console.error(
-        'Error finding item by account ID:',
-        error.response
-          ? JSON.stringify(error.response.data, null, 2)
-          : error.message
-      );
-      throw error;
     }
-  }
+  `;
 
-  console.error(`No items found with account ID: ${accountId}`);
-  return null;
+  const variables = {
+    boardId: boardId.toString(),
+    columnId: columnMap.accountId,
+    columnValue: accountId.toString(),
+  };
+
+  console.log('GraphQL Query for getItemIdByAccountId:\n', query);
+  console.log('Variables:', JSON.stringify(variables, null, 2));
+
+  try {
+    const response = await axios.post(
+      'https://api.monday.com/v2',
+      { query, variables },
+      {
+        headers: {
+          Authorization: MONDAY_API_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log(
+      'Response from Monday.com for getItemIdByAccountId:',
+      JSON.stringify(response.data, null, 2)
+    );
+
+    if (
+      response.data &&
+      response.data.data &&
+      response.data.data.items_by_column_values &&
+      response.data.data.items_by_column_values.length > 0
+    ) {
+      const item = response.data.data.items_by_column_values[0];
+      console.log(`Found item with ID: ${item.id} for account ID: ${accountId}`);
+      return item.id; // Return the ID of the matching item
+    } else if (response.data && response.data.errors) {
+      console.error('GraphQL errors:', JSON.stringify(response.data.errors, null, 2));
+      throw new Error('Failed to get item: ' + response.data.errors[0].message);
+    } else {
+      console.error(`No items found with account ID: ${accountId}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(
+      'Error finding item by account ID:',
+      error.response ? JSON.stringify(error.response.data, null, 2) : error.message
+    );
+    throw error;
+  }
 };
 
 // Function to update multiple column values for an existing item in Monday.com
