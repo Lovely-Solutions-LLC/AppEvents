@@ -1,7 +1,7 @@
 // functions/webhook-handler.js
 
 const axios = require('axios');
-const { getCountryName } = require('../countryTranslator'); // Adjust the path if necessary
+const { getCountryName } = require('../countryTranslator'); // Ensure this path is correct
 
 // Board ID mapping based on app ID
 const boardIdMapping = {
@@ -11,7 +11,7 @@ const boardIdMapping = {
   '10172591': '7540627206', // Ultimate Team Productivity Tool
 };
 
-// Column IDs (Same across all boards)
+// Column IDs (Ensure these match exactly with your Monday.com board's column IDs)
 const columnMap = {
   email: 'email__1',
   firstName: 'text8__1',
@@ -118,29 +118,45 @@ const createMondayItem = async (itemName, columnValues, boardId, MONDAY_API_TOKE
   }
 };
 
-// Function to get item ID by account ID using items_by_column_values
+// Function to get item ID by account ID using items_page
 const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
   console.log('Entered getItemIdByAccountId function');
   console.log('Account ID:', accountId);
   console.log('Board ID:', boardId);
 
   const query = `
-    query getItemByAccountId($boardId: ID!, $columnId: String!, $columnValue: String!) {
-      items_by_column_values(
-        board_id: $boardId,
-        column_id: $columnId,
-        column_value: $columnValue
-      ) {
-        id
-        name
+    query getItemByAccountId($boardId: ID!, $limit: Int!, $queryParams: ItemsPageQuery!) {
+      boards(ids: [$boardId]) {
+        items_page(limit: $limit, query_params: $queryParams) {
+          cursor
+          items {
+            id
+            name
+            column_values {
+              id
+              text
+            }
+          }
+        }
       }
     }
   `;
 
+  const queryParams = {
+    rules: [
+      {
+        column_id: columnMap.accountId,
+        compare_value: [accountId.toString()],
+        operator: 'eq',
+      },
+    ],
+    operator: 'and',
+  };
+
   const variables = {
     boardId: boardId.toString(),
-    columnId: columnMap.accountId,
-    columnValue: accountId.toString(),
+    limit: 500, // Maximum allowed by Monday.com API
+    queryParams,
   };
 
   console.log('GraphQL Query for getItemIdByAccountId:\n', query);
@@ -166,17 +182,32 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
     if (
       response.data &&
       response.data.data &&
-      response.data.data.items_by_column_values &&
-      response.data.data.items_by_column_values.length > 0
+      response.data.data.boards.length > 0 &&
+      response.data.data.boards[0].items_page.items.length > 0
     ) {
-      const item = response.data.data.items_by_column_values[0];
-      console.log(`Found item with ID: ${item.id} for account ID: ${accountId}`);
-      return item.id; // Return the ID of the matching item
+      const items = response.data.data.boards[0].items_page.items;
+      console.log(`Retrieved ${items.length} items matching account ID: ${accountId}`);
+
+      for (const item of items) {
+        const accountIdColumn = item.column_values.find(
+          (column) => column.id === columnMap.accountId
+        );
+        console.log(
+          `Item ID: ${item.id}, Account ID in item: ${accountIdColumn?.text}`
+        );
+
+        if (accountIdColumn && accountIdColumn.text === accountId.toString()) {
+          console.log(
+            `Found item with ID: ${item.id} for account ID: ${accountId}`
+          );
+          return item.id; // Return the ID of the matching item
+        }
+      }
     } else if (response.data && response.data.errors) {
       console.error('GraphQL errors:', JSON.stringify(response.data.errors, null, 2));
       throw new Error('Failed to get item: ' + response.data.errors[0].message);
     } else {
-      console.error(`No items found with account ID: ${accountId}`);
+      console.log(`No items found with account ID: ${accountId}`);
       return null;
     }
   } catch (error) {
@@ -402,111 +433,7 @@ exports.handler = async (event, context) => {
         }
         break;
 
-      case 'app_subscription_created':
-        console.log('Handling "app_subscription_created" event.');
-        let createdSubscriptionItemId = null;
-        attempts = 0;
-        while (!createdSubscriptionItemId && attempts < maxAttempts) {
-          attempts++;
-          try {
-            createdSubscriptionItemId = await getItemIdByAccountId(
-              payload.account_id,
-              boardId,
-              MONDAY_API_TOKEN
-            );
-            if (!createdSubscriptionItemId) {
-              console.log(`Attempt ${attempts}: Item not found. Retrying in ${delay}ms...`);
-              await new Promise((resolve) => setTimeout(resolve, delay));
-            }
-          } catch (error) {
-            console.error('Error during item retrieval:', error);
-            break;
-          }
-        }
-
-        if (createdSubscriptionItemId) {
-          await updateMondayItem(
-            createdSubscriptionItemId,
-            {
-              [columnMap.status]: { label: 'Subscription Created' }, // Update the status column
-              [columnMap.planId]: payload.plan_id ? payload.plan_id.toString() : '', // Update the plan ID column
-            },
-            boardId,
-            MONDAY_API_TOKEN
-          );
-        } else {
-          console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
-        }
-        break;
-
-      case 'app_subscription_cancelled':
-        console.log('Handling "app_subscription_cancelled" event.');
-        let cancelledSubscriptionItemId = null;
-        attempts = 0;
-        while (!cancelledSubscriptionItemId && attempts < maxAttempts) {
-          attempts++;
-          try {
-            cancelledSubscriptionItemId = await getItemIdByAccountId(
-              payload.account_id,
-              boardId,
-              MONDAY_API_TOKEN
-            );
-            if (!cancelledSubscriptionItemId) {
-              console.log(`Attempt ${attempts}: Item not found. Retrying in ${delay}ms...`);
-              await new Promise((resolve) => setTimeout(resolve, delay));
-            }
-          } catch (error) {
-            console.error('Error during item retrieval:', error);
-            break;
-          }
-        }
-
-        if (cancelledSubscriptionItemId) {
-          await updateMondayItem(
-            cancelledSubscriptionItemId,
-            { [columnMap.status]: { label: 'Subscription Cancelled' } },
-            boardId,
-            MONDAY_API_TOKEN
-          );
-        } else {
-          console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
-        }
-        break;
-
-      case 'app_subscription_renewed':
-        console.log('Handling "app_subscription_renewed" event.');
-        let renewedSubscriptionItemId = null;
-        attempts = 0;
-        while (!renewedSubscriptionItemId && attempts < maxAttempts) {
-          attempts++;
-          try {
-            renewedSubscriptionItemId = await getItemIdByAccountId(
-              payload.account_id,
-              boardId,
-              MONDAY_API_TOKEN
-            );
-            if (!renewedSubscriptionItemId) {
-              console.log(`Attempt ${attempts}: Item not found. Retrying in ${delay}ms...`);
-              await new Promise((resolve) => setTimeout(resolve, delay));
-            }
-          } catch (error) {
-            console.error('Error during item retrieval:', error);
-            break;
-          }
-        }
-
-        if (renewedSubscriptionItemId) {
-          await updateMondayItem(
-            renewedSubscriptionItemId,
-            { [columnMap.status]: { label: 'Subscription Renewed' } },
-            boardId,
-            MONDAY_API_TOKEN
-          );
-        } else {
-          console.error(`No item found with account ID: ${payload.account_id} after ${attempts} attempts`);
-        }
-        break;
-
+      // Add other event types as needed
       default:
         console.log('Ignoring unhandled event type:', notificationType);
         return {
