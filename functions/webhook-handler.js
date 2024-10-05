@@ -144,7 +144,7 @@ const getItemIdByAccountId = async (accountId, boardId, MONDAY_API_TOKEN) => {
   const variables = {
     boardId: boardId.toString(),
     columnId: columnMap.accountId,
-    limit: 1000, // Adjust the limit as needed
+    limit: 500, // Adjust the limit as needed
   };
 
   console.log('GraphQL Query for getItemIdByAccountId:\n', query);
