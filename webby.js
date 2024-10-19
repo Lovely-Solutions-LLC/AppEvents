@@ -35,7 +35,7 @@ const columnMap = {
     planId: 'text21__1',
     country: 'country__1',
     accountTier: 'status__1', // Separate status column specifically for account tier
-    billingPeriod: 'text37__1'
+    billingPeriod: 'billing_period__1'
 };
 
 // Function to create a new item in Monday.com
