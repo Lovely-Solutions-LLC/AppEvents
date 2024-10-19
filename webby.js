@@ -34,7 +34,8 @@ const columnMap = {
     accountId: 'text2__1',
     planId: 'text21__1',
     country: 'country__1',
-    accountTier: 'status__1' // Separate status column specifically for account tier
+    accountTier: 'status__1', // Separate status column specifically for account tier
+    billingPeriod: 'text37__1'
 };
 
 // Function to create a new item in Monday.com
@@ -211,7 +212,8 @@ app.post('/webhook', async (req, res) => {
         [columnMap.accountId]: data.account_id.toString(),
         [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '',
         [columnMap.country]: { countryCode: data.user_country, countryName: getCountryName(data.user_country) },
-        [columnMap.accountTier]: { label: accountTier } // Use default or valid value
+        [columnMap.accountTier]: { label: accountTier }, // Use default or valid value
+        [columnMap.billingPeriod]: data.billing_period ? data.billing_period : 'N/A'
     };
 
     console.log('Column values for Monday item operation:', JSON.stringify(columnValues, null, 2));  // Log all column values
