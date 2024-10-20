@@ -188,6 +188,8 @@ app.post('/webhook', async (req, res) => {
     const notificationType = req.body.type;
     const data = req.body.data;
 
+    console.log('Received event type:', notificationType);
+
     const { firstName, lastName } = splitName(data.user_name);
     const boardId = boardIdMapping[data.app_id];
 
