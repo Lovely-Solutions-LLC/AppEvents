@@ -16,7 +16,8 @@ const boardIdMapping = {
     '10142077': '7517528529', // Board ID for App 10142077 (Status Label Descriptions)
     '10126111': '7517444546', // Board ID for App 10126111 (Update Templates)
     '10147286': '7517579690',  // Board ID for App 10147286 (Facebook Embedded)
-    '10172591': '7540627206' //Board ID for App 10172591 (Ultimate Team Productivity Tool)
+    '10172591': '7540627206', //Board ID for App 10172591 (Ultimate Team Productivity Tool)
+    '10233302': '7722486447' // Board ID for Time Tracking Reports
 };
 
 // Column IDs (Same across all boards)
@@ -220,57 +221,51 @@ app.post('/webhook', async (req, res) => {
 
     console.log('Column values for Monday item operation:', JSON.stringify(columnValues, null, 2));  // Log all column values
 
-try {
-    // Temporary catch-all log to identify any unrecognized notificationType
-    if (!['install', 'uninstall', 'app_subscription_created', 'app_subscription_cancelled', 'app_subscription_renewed'].includes(notificationType)) {
-        console.log('Unrecognized notificationType:', notificationType);
+    try {
+        switch (notificationType) {
+            case 'install':
+                console.log('Handling "install" event.');
+                await createMondayItem(data.account_name, columnValues, boardId);
+                break;
+            case 'uninstall':
+                console.log('Handling "uninstall" event.');
+                const uninstallItemId = await getItemIdByAccountId(data.account_id, boardId);
+                if (uninstallItemId) {
+                    await updateMondayItem(uninstallItemId, { [columnMap.status]: { label: 'Uninstalled' } }, boardId);
+                }
+                break;
+            case 'app_subscription_created':
+                console.log('Handling "app_subscription_created" event.');
+                const createdSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
+                if (createdSubscriptionItemId) {
+                    await updateMondayItem(createdSubscriptionItemId, {
+                        [columnMap.status]: { label: 'Subscription Created' }, // Update the status column
+                        [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '' // Update the plan ID column
+                    }, boardId);
+                }
+                break;
+            case 'app_subscription_cancelled':
+                console.log('Handling "app_subscription_cancelled" event.');
+                const cancelledSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
+                if (cancelledSubscriptionItemId) {
+                    await updateMondayItem(cancelledSubscriptionItemId, { [columnMap.status]: { label: 'Subscription Cancelled' } }, boardId);
+                }
+                break;
+            case 'app_subscription_renewed':
+                console.log('Handling "app_subscription_renewed" event.');
+                const renewedSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
+                if (renewedSubscriptionItemId) {
+                    await updateMondayItem(renewedSubscriptionItemId, { [columnMap.status]: { label: 'Subscription Renewed' } }, boardId);
+                }
+                break;
+            default:
+                console.log('Ignoring unhandled event type:', notificationType);
+                res.sendStatus(200);
+                return;
+        }
+    } catch (error) {
+        console.error('Error handling webhook event:', error);
     }
-
-    switch (notificationType) {
-        case 'install':
-            console.log('Handling "install" event.');
-            await createMondayItem(data.account_name, columnValues, boardId);
-            break;
-        case 'uninstall':
-            console.log('Handling "uninstall" event.');
-            const uninstallItemId = await getItemIdByAccountId(data.account_id, boardId);
-            if (uninstallItemId) {
-                await updateMondayItem(uninstallItemId, { [columnMap.status]: { label: 'Uninstalled' } }, boardId);
-            }
-            break;
-        case 'app_subscription_created':
-            console.log('Handling "app_subscription_created" event.');
-            const createdSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
-            if (createdSubscriptionItemId) {
-                await updateMondayItem(createdSubscriptionItemId, {
-                    [columnMap.status]: { label: 'Subscription Created' }, // Update the status column
-                    [columnMap.planId]: data.plan_id ? data.plan_id.toString() : '' // Update the plan ID column
-                }, boardId);
-            }
-            break;
-        case 'app_subscription_cancelled':
-            console.log('Handling "app_subscription_cancelled" event.');
-            const cancelledSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
-            if (cancelledSubscriptionItemId) {
-                await updateMondayItem(cancelledSubscriptionItemId, { [columnMap.status]: { label: 'Subscription Cancelled' } }, boardId);
-            }
-            break;
-        case 'app_subscription_renewed':
-            console.log('Handling "app_subscription_renewed" event.');
-            const renewedSubscriptionItemId = await getItemIdByAccountId(data.account_id, boardId);
-            if (renewedSubscriptionItemId) {
-                await updateMondayItem(renewedSubscriptionItemId, { [columnMap.status]: { label: 'Subscription Renewed' } }, boardId);
-            }
-            break;
-        default:
-            console.log('Ignoring unhandled event type:', notificationType);
-            res.sendStatus(200);
-            return;
-    }
-} catch (error) {
-    console.error('Error handling webhook event:', error);
-}
-
 
     res.sendStatus(200);
 });
