@@ -9,7 +9,8 @@ const boardIdMapping = {
   '10126111': '7517444546', // Update Templates
   '10147286': '7517579690', // Facebook Embedded
   '10172591': '7540627206', // Ultimate Team Productivity Tool
-  '10233302': '7722486447',
+  '10233302': '7722486447', // Time Tracking Exports
+  '10228966': '8371249876', // Aircall x Monday CRM Integration
 };
 
 // Column IDs (Ensure these match exactly with your Monday.com board's column IDs)
