@@ -16,8 +16,9 @@ const boardIdMapping = {
     '10142077': '7517528529', // Board ID for App 10142077 (Status Label Descriptions)
     '10126111': '7517444546', // Board ID for App 10126111 (Update Templates)
     '10147286': '7517579690',  // Board ID for App 10147286 (Facebook Embedded)
-    '10172591': '7540627206', //Board ID for App 10172591 (Ultimate Team Productivity Tool)
-    '10233302': '7722486447' // Board ID for Time Tracking Reports
+    '10172591': '7540627206', //Board ID for App 10172591 (Master Activity Logs)
+    '10233302': '7722486447', // Board ID for Time Tracking Reports
+    '10228966': '8371249876' //Board ID for Aircall x Monday CRM Integration
 };
 
 // Column IDs (Same across all boards)
